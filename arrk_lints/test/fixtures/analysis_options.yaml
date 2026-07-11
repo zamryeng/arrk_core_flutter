@@ -1,0 +1,28 @@
+plugins:
+  arrk_lints:
+    path: ../..
+    diagnostics:
+      avoid_data_models_in_domain: true
+      event_bus_publisher_restriction: true
+      event_naming_past_tense: true
+      no_build_context_in_domain_or_data_or_services: true
+      no_change_notifier_outside_vm: true
+      no_cross_repo_calls: true
+      no_event_bus_in_repo: true
+      no_event_fire_in_handler: true
+      no_manager_in_features: true
+      no_repo_interfaces: true
+      no_service_locator_in_features: true
+      no_singleton_viewmodel: true
+      no_try_catch_in_domain: true
+      subscription_cancelled_in_dispose: true
+
+# The fixtures deliberately declare never-read private fields and similar
+# shapes; keep standard hygiene diagnostics from polluting a directory-mode
+# `dart analyze` over the package.
+analyzer:
+  errors:
+    unused_field: ignore
+    unused_local_variable: ignore
+    unused_element: ignore
+    unused_import: ignore

@@ -1,0 +1,9 @@
+# Analysis options for the arrk_lints package itself (lib/ and test/).
+#
+# The golden fixtures under test/fixtures/ are intentional rule violations.
+# They are analyzed in their own context (test/fixtures/analysis_options.yaml
+# enables the plugin for that tree) and are excluded here so `dart analyze`
+# over the package stays clean.
+analyzer:
+  exclude:
+    - test/fixtures/**

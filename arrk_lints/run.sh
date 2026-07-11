@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# Runs the arrk_lints architecture rules over a target project.
+#
+# Why this wrapper exists: plugin diagnostics only surface for explicitly-
+# listed file arguments; directory-mode analysis (`dart analyze <dir>` and a
+# bare `flutter analyze` scanning the project) shows none of them. So we
+# enumerate the project's Dart files (tracked + untracked-not-ignored) and
+# pass them explicitly to `dart analyze`. (Per-file args work under both
+# `dart analyze` and `flutter analyze`; we use `dart analyze` here.)
+#
+# Usage:
+#   arrk_lints/run.sh [project_dir]   # defaults to the current directory
+set -euo pipefail
+
+LINTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+TARGET_DIR="${1:-$PWD}"
+cd "$TARGET_DIR"
+
+# Resolve the Dart command. Prefer fvm when the project is fvm-managed.
+if [ -d .fvm ] && command -v fvm >/dev/null 2>&1; then
+  DART=(fvm dart)
+elif command -v dart >/dev/null 2>&1; then
+  DART=(dart)
+else
+  echo "Could not find 'dart' (or 'fvm dart'). Install the Dart/Flutter SDK." >&2
+  exit 1
+fi
+
+# Make sure the plugin package is resolved.
+( cd "$LINTS_DIR" && "${DART[@]}" pub get >/dev/null )
+
+# Dart sources under lib/, excluding generated outputs. Includes tracked
+# files plus untracked-but-not-ignored ones, so a brand-new file is gated
+# even before it's committed (portable: no mapfile -> works on bash 3.2).
+files=()
+while IFS= read -r f; do
+  files+=("$f")
+done < <(
+  {
+    git ls-files 'lib/**/*.dart' 'lib/*.dart'
+    git ls-files --others --exclude-standard 'lib/**/*.dart' 'lib/*.dart'
+  } | grep -vE '\.(config|g|mapper|freezed)\.dart$' | sort -u
+)
+
+if [ "${#files[@]}" -eq 0 ]; then
+  echo "No Dart files found under lib/ in $TARGET_DIR." >&2
+  exit 0
+fi
+
+echo "Analyzing ${#files[@]} files with arrk_lints..." >&2
+"${DART[@]}" analyze "${files[@]}"

@@ -1,0 +1,26 @@
+name: arrk_core_example
+description: Minimal example app exercising the arrk_core_flutter public API.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  arrk_core_flutter:
+    path: ../
+  get_it: ^9.1.0
+  go_router: ^17.0.0
+  injectable: ^2.6.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.10.4
+  injectable_generator: ^2.9.1
+
+flutter:
+  uses-material-design: true

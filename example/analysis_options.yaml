@@ -1,0 +1,46 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  exclude:
+    - lib/**.config.dart
+
+# The arrk architecture lints, active exactly as a product would enable them
+# (products use a git: source pinned to a tag; the example uses the sibling
+# path).
+plugins:
+  arrk_lints:
+    path: ../arrk_lints
+    diagnostics:
+      avoid_data_models_in_domain: true
+      event_bus_publisher_restriction: true
+      event_naming_past_tense: true
+      no_build_context_in_domain_or_data_or_services: true
+      no_change_notifier_outside_vm: true
+      no_cross_repo_calls: true
+      no_event_bus_in_repo: true
+      no_event_fire_in_handler: true
+      no_manager_in_features: true
+      no_repo_interfaces: true
+      no_service_locator_in_features: true
+      no_singleton_viewmodel: true
+      no_try_catch_in_domain: true
+      subscription_cancelled_in_dispose: true
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_relative_lib_imports
+    - prefer_relative_imports
+    - avoid_renaming_method_parameters
+    - flutter_style_todos
+    - prefer_is_empty
+    - prefer_is_not_empty
+    - prefer_single_quotes
+
+formatter:
+  page_width: 100
+  trailing_commas: preserve
