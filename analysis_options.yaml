@@ -11,6 +11,7 @@ analyzer:
   # fixtures.
   exclude:
     - arrk_lints/**
+    - build/**
 
 linter:
   rules:

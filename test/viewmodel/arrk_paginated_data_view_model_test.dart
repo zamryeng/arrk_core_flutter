@@ -2,20 +2,9 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:arrk_core_flutter/responses.dart';
 import 'package:arrk_core_flutter/viewmodel.dart';
 import 'package:arrk_core_flutter/testing.dart';
-
-// ---------------------------------------------------------------------------
-// DI bootstrap helpers
-// ---------------------------------------------------------------------------
-
-void _bootstrapNoop() {
-  if (!GetIt.instance.isRegistered<MessageDisplayHandler>()) {
-    GetIt.instance.registerSingleton<MessageDisplayHandler>(NoopMessageHandler());
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Test VMs
@@ -24,6 +13,8 @@ void _bootstrapNoop() {
 /// Scripted fetch: callers push [DataResponse]s onto the queue and
 /// [_ScriptedPaginatedVm] pops them in order.
 class _ScriptedPaginatedVm extends ArrkPaginatedDataViewModel<String> {
+  _ScriptedPaginatedVm() : super(FakeMessageSink());
+
   final Queue<DataResponse<Iterable<String>>> script =
       Queue<DataResponse<Iterable<String>>>();
 
@@ -44,6 +35,8 @@ class _ScriptedPaginatedVm extends ArrkPaginatedDataViewModel<String> {
 
 /// VM that holds a fetch in progress via a Completer, for testing busy guard.
 class _SlowPaginatedVm extends ArrkPaginatedDataViewModel<String> {
+  _SlowPaginatedVm() : super(FakeMessageSink());
+
   late Completer<void> completer;
   int fetchCalls = 0;
 
@@ -75,16 +68,12 @@ void main() {
   late _ScriptedPaginatedVm vm;
 
   setUp(() {
-    _bootstrapNoop();
     vm = _ScriptedPaginatedVm();
     // Add a listener so handleError actually records failures.
     vm.addListener(() {});
   });
 
-  tearDown(() async {
-    vm.dispose();
-    await GetIt.instance.reset();
-  });
+  tearDown(() => vm.dispose());
 
   group('refresh', () {
     test('resets to page 1 and fetches', () async {

@@ -22,8 +22,11 @@ import 'package:test/test.dart';
 /// The set of rule names owned by this plugin.
 const _ourRules = {
   'avoid_data_models_in_domain',
+  'capability_stateless',
   'event_bus_publisher_restriction',
   'event_naming_past_tense',
+  'event_subscribe_restriction',
+  'message_stream_restriction',
   'no_build_context_in_domain_or_data_or_services',
   'no_change_notifier_outside_vm',
   'no_cross_repo_calls',
@@ -35,6 +38,7 @@ const _ourRules = {
   'no_singleton_viewmodel',
   'no_try_catch_in_domain',
   'subscription_cancelled_in_dispose',
+  'vm_uses_capabilities_only',
 };
 
 /// `expect_lint: <rule>` (the rest of the line is a human note).

@@ -10,8 +10,9 @@ import 'ast_helpers.dart';
 /// Bans `@singleton` / `@lazySingleton` on `ArrkViewModel` subclasses.
 ///
 /// ViewModels are factory-scoped (`@injectable`). App-lifetime state belongs
-/// in repos (data state) or the session manager (session state). Documented
-/// exceptions use `// ignore: no_singleton_viewmodel` with a rationale.
+/// in a repo (the session too: it lives in the session repo). A justified
+/// exception goes in the product's baseline (`run.sh --update`) with a
+/// rationale in review.
 class NoSingletonViewModel extends AnalysisRule {
   NoSingletonViewModel()
     : super(
@@ -28,9 +29,9 @@ class NoSingletonViewModel extends AnalysisRule {
     _name,
     "'{0}' is a ViewModel annotated @singleton/@lazySingleton.",
     correctionMessage:
-        'Use @injectable (factory scope). Move shared state into a repo or '
-        'the session manager. If a singleton is truly justified, suppress '
-        'with // ignore: no_singleton_viewmodel and document why.',
+        'Use @injectable (factory scope). Move shared state into a repo. If '
+        'a singleton is truly justified, baseline it (run.sh --update) and '
+        'document why.',
     severity: DiagnosticSeverity.WARNING,
   );
 

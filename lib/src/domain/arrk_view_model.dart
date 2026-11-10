@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../locator/service_locator.dart';
 import 'failure.dart';
+import 'messages/message_sink.dart';
+import 'messages/user_message.dart';
 
 /// The states a view model can be in. The UI selects how to render itself
 /// from this value.
@@ -19,46 +20,44 @@ enum VmState {
   noConnection,
 }
 
-/// Displays user-facing messages (toasts, banners) on behalf of view models.
-///
-/// Products register one implementation in DI; [ArrkViewModel] resolves it
-/// when no handler is passed to the constructor.
-abstract class MessageDisplayHandler {
-  void showError(String message, [String? heading]);
-  void showSuccess(String message, [String? heading]);
-  void showWarning(String message, [String? heading]);
-  void showInfo(String message, [String? heading]);
-}
-
 /// Base class for view models: [ChangeNotifier]s that hold UI state for one
 /// screen or feature.
 ///
 /// The view listens to an instance of this class and rebuilds from its
 /// members; buttons and gestures call methods on it. View models are screen
-/// glue — they route to repos and usecases, never carry business logic, and
-/// are registered `@injectable` (factory), never singleton.
+/// glue: they call capabilities (use cases) only — never repos, services or
+/// the event bus — carry no business logic, and are registered `@injectable`
+/// (factory), never singleton. They never navigate: a method returns what
+/// the view needs to decide where to go.
 ///
 /// ```dart
+/// @injectable
 /// class LoginViewModel extends ArrkViewModel {
-///   Future<void> login(String email, String password) async {
+///   LoginViewModel(this._signIn, super.messageSink);
+///
+///   final SignInUseCase _signIn;
+///
+///   /// True when signed in; the view navigates on true.
+///   Future<bool> login(String email, String password) async {
 ///     setState(VmState.busy);
-///     final result = await _accountRepo.signIn(email, password);
+///     final result = await _signIn.withPassword(email, password);
 ///     if (result.hasError) {
 ///       handleErrorAndSetVmState(result.error!);
-///     } else {
-///       setState(VmState.none);
+///       return false;
 ///     }
+///     setState(VmState.none);
+///     return true;
 ///   }
 /// }
 /// ```
 abstract class ArrkViewModel extends ChangeNotifier {
-  ArrkViewModel([MessageDisplayHandler? messageHandler])
-    : messageHandler = messageHandler ?? ServiceLocator.get<MessageDisplayHandler>();
+  ArrkViewModel(this.messageSink);
 
-  /// The handler used by [handleError] / [handleErrorAndSetVmState] to
-  /// surface messages. Injected through the constructor, or resolved from
-  /// the service locator when not provided.
-  final MessageDisplayHandler messageHandler;
+  /// Where [handleError] and the `show*` helpers push user messages. The
+  /// app's one `ArrkMessageHandler` reads and draws them, so a message
+  /// pushed after this VM is disposed still shows.
+  @protected
+  final MessageSink messageSink;
 
   VmState _viewState = VmState.none;
 
@@ -109,7 +108,7 @@ abstract class ArrkViewModel extends ChangeNotifier {
   /// otherwise.
   @protected
   void handleErrorAndSetVmState(Failure failure, [String? heading]) {
-    handleError(failure);
+    handleError(failure, heading);
 
     if (failure is NetworkFailure) {
       setState(VmState.noConnection);
@@ -118,14 +117,26 @@ abstract class ArrkViewModel extends ChangeNotifier {
     }
   }
 
-  /// Shows [failure]'s message through [messageHandler] and records it as
-  /// [lastFailure]. Only acts while the view model has listeners (i.e. a
-  /// mounted view).
+  /// Pushes an error message with [failure]'s message and records it as
+  /// [lastFailure]. Pushes even after [dispose].
   @protected
   void handleError(Failure failure, [String? heading]) {
-    if (hasListeners) {
-      messageHandler.showError(failure.message);
-      _lastFailure = failure;
-    }
+    _lastFailure = failure;
+    messageSink.push(UserMessage.error(failure.message, heading: heading));
   }
+
+  /// Pushes a success message. Pushes even after [dispose].
+  @protected
+  void showSuccess(String text, [String? heading]) =>
+      messageSink.push(UserMessage.success(text, heading: heading));
+
+  /// Pushes a warning message. Pushes even after [dispose].
+  @protected
+  void showWarning(String text, [String? heading]) =>
+      messageSink.push(UserMessage.warning(text, heading: heading));
+
+  /// Pushes an info message. Pushes even after [dispose].
+  @protected
+  void showInfo(String text, [String? heading]) =>
+      messageSink.push(UserMessage.info(text, heading: heading));
 }

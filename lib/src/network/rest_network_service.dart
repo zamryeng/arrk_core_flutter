@@ -42,7 +42,7 @@ class ApiEnvelope {
 ///
 /// ```dart
 /// final networkService = DioNetworkService(
-///   sessionManager: session,
+///   headersProvider: requestHeaders,
 ///   baseUrl: 'https://api.example.com',
 ///   isProd: true,
 ///   sendTimeout: Duration(seconds: 30),

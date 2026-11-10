@@ -8,10 +8,9 @@ import 'dart:convert';
 class ArrkExtraType<T extends Object> {
   const ArrkExtraType({
     required this.name,
-    required Object? Function(T value) encode,
-    required T Function(Object? payload) decode,
-  }) : _encode = encode,
-       _decode = decode;
+    required this._encode,
+    required this._decode,
+  });
 
   /// Stable wire name for the type. Renaming it breaks previously-issued
   /// deep links — treat it as persisted data.

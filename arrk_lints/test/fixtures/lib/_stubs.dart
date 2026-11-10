@@ -22,9 +22,30 @@ class TextEditingController extends ChangeNotifier {}
 
 class ArrkEvent {}
 
-class ArrkEventBus {
+abstract interface class EventPublisher {
+  void fire(Object event);
+}
+
+abstract interface class EventStream {
+  Stream<T> on<T>();
+  Stream<ArrkEvent> get all;
+}
+
+class ArrkEventBus implements EventPublisher, EventStream {
+  @override
   void fire(Object event) {}
+  @override
   Stream<T> on<T>() => Stream<T>();
+  @override
+  Stream<ArrkEvent> get all => Stream<ArrkEvent>();
+}
+
+/// The one sanctioned subscriber.
+abstract class ArrkReactions<E> {
+  ArrkReactions(this.events);
+  final EventStream events;
+  void start() {}
+  Future<void> react(E event);
 }
 
 /// Base class for repos — `no_cross_repo_calls` keys on this supertype name.
@@ -32,8 +53,29 @@ class ArrkRepository {}
 
 class BuildContext {}
 
-/// A UI dependency used by the constructor-fallback injection fixtures.
-class MessageDisplayHandler {}
+/// The message write side: the one message type a VM may hold.
+abstract interface class MessageSink {
+  void push(Object message);
+}
+
+/// The message read side.
+abstract interface class MessageStream {
+  Stream<Object> get messages;
+}
+
+class ArrkMessageChannel implements MessageSink, MessageStream {
+  @override
+  void push(Object message) {}
+  @override
+  Stream<Object> get messages => Stream<Object>();
+}
+
+/// The one message reader.
+abstract class ArrkMessageHandler {
+  ArrkMessageHandler(this.messages);
+  final MessageStream messages;
+  void show(Object message);
+}
 
 /// Widget stand-in taking the `model:` argument route builders construct.
 class View {
@@ -41,6 +83,11 @@ class View {
 }
 
 const singleton = _Singleton();
+const module = _Module();
+
+class _Module {
+  const _Module();
+}
 const lazySingleton = _LazySingleton();
 
 class _Singleton {

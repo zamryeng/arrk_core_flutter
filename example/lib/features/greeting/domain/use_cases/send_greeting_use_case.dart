@@ -7,18 +7,20 @@ import '../dtos/greeting_draft_dto.dart';
 import '../greeting_events.dart';
 import '../models/greeting_tone.dart';
 
-/// The user goal: send a greeting. One class, stateless methods for each
-/// step of the goal — no execute()/call() convention.
+/// Capability: send a greeting. One class for one named objective, with a
+/// named method per step — no execute()/call(). Stateless: its only fields
+/// are injected dependencies.
 ///
 /// Consumes `DataResponse`/`StatusResponse` from the repo; no try/catch in
-/// domain. Fires `GreetingSent` — usecases and the session manager are the
-/// only sanctioned event publishers.
+/// domain. Publishes `GreetingSent` after a successful send, because a
+/// different feature (activity) reacts. Capabilities are the only
+/// publishers.
 @injectable
 class SendGreetingUseCase {
-  SendGreetingUseCase(this._greetingsRepo, this._eventBus);
+  SendGreetingUseCase(this._greetingsRepo, this._events);
 
   final GreetingsRepo _greetingsRepo;
-  final ArrkEventBus _eventBus;
+  final EventPublisher _events;
 
   /// Validates the input and derives the preview — the business half of the
   /// compose screen. Returns the Dto the flow carries forward.
@@ -45,7 +47,7 @@ class SendGreetingUseCase {
     );
   }
 
-  /// Sends a complete draft and records the fact on the event bus.
+  /// Sends a complete draft, then publishes `GreetingSent`.
   Future<StatusResponse> send(GreetingDraftDto draft) async {
     if (!draft.isComplete) {
       return StatusResponse.failed(InputFailure(message: 'The draft is incomplete.'));
@@ -56,7 +58,7 @@ class SendGreetingUseCase {
       message: draft.previewText,
     );
     if (result.isSuccessful) {
-      _eventBus.fire(GreetingSent(recipientName: draft.recipientName, firedAt: DateTime.now()));
+      _events.fire(GreetingSent(recipientName: draft.recipientName, firedAt: DateTime.now()));
     }
     return result;
   }

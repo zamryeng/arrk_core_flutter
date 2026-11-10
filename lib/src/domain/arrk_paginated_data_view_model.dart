@@ -12,12 +12,18 @@ import 'arrk_view_model.dart';
 ///
 /// ```dart
 /// class ActivityListViewModel extends ArrkPaginatedDataViewModel<Activity> {
+///   ActivityListViewModel(this._listActivity, super.messageSink);
+///
+///   final ListActivityUseCase _listActivity;
+///
 ///   @override
 ///   Future<DataResponse<Iterable<Activity>>> fetchData(int page) =>
-///       _activityRepo.getActivities(page: page);
+///       _listActivity.page(page);
 /// }
 /// ```
 abstract class ArrkPaginatedDataViewModel<T> extends ArrkViewModel {
+  ArrkPaginatedDataViewModel(super.messageSink);
+
   int _page = 1;
 
   bool _reachedMax = false;
@@ -44,8 +50,8 @@ abstract class ArrkPaginatedDataViewModel<T> extends ArrkViewModel {
   /// Read-only view of every loaded item.
   UnmodifiableListView<T> get data => UnmodifiableListView(dataList);
 
-  /// Fetches one page. Implementations return the repo's [DataResponse]
-  /// directly — the base class handles state and errors.
+  /// Fetches one page. Implementations return the capability's
+  /// [DataResponse] directly — the base class handles state and errors.
   Future<DataResponse<Iterable<T>>> fetchData(int page);
 
   /// Resets to page 1, clears held data on success, and fetches. The

@@ -2,8 +2,11 @@ import 'package:analysis_server_plugin/plugin.dart';
 import 'package:analysis_server_plugin/registry.dart';
 
 import 'src/rules/avoid_data_models_in_domain.dart';
+import 'src/rules/capability_stateless.dart';
 import 'src/rules/event_bus_publisher_restriction.dart';
 import 'src/rules/event_naming_past_tense.dart';
+import 'src/rules/event_subscribe_restriction.dart';
+import 'src/rules/message_stream_restriction.dart';
 import 'src/rules/no_build_context_in_domain_or_data_or_services.dart';
 import 'src/rules/no_change_notifier_outside_vm.dart';
 import 'src/rules/no_cross_repo_calls.dart';
@@ -15,6 +18,7 @@ import 'src/rules/no_service_locator_in_features.dart';
 import 'src/rules/no_singleton_viewmodel.dart';
 import 'src/rules/no_try_catch_in_domain.dart';
 import 'src/rules/subscription_cancelled_in_dispose.dart';
+import 'src/rules/vm_uses_capabilities_only.dart';
 
 /// Entry point for the arrk architecture lint plugin.
 ///
@@ -23,7 +27,8 @@ import 'src/rules/subscription_cancelled_in_dispose.dart';
 /// plugins:
 ///   arrk_lints:
 ///     git:
-///       url: https://github.com/doleasoft/arrk_core_flutter
+///       url: <your arrk_core_flutter git URL>
+///       ref: v0.1.1
 ///       path: arrk_lints
 ///     diagnostics:
 ///       no_manager_in_features: true
@@ -45,8 +50,11 @@ class ArrkLintsPlugin extends Plugin {
   @override
   void register(PluginRegistry registry) {
     registry.registerLintRule(AvoidDataModelsInDomain());
+    registry.registerLintRule(CapabilityStateless());
     registry.registerLintRule(EventBusPublisherRestriction());
     registry.registerLintRule(EventNamingPastTense());
+    registry.registerLintRule(EventSubscribeRestriction());
+    registry.registerLintRule(MessageStreamRestriction());
     registry.registerLintRule(NoBuildContextInDomainOrDataOrServices());
     registry.registerLintRule(NoChangeNotifierOutsideVm());
     registry.registerLintRule(NoCrossRepoCalls());
@@ -58,5 +66,6 @@ class ArrkLintsPlugin extends Plugin {
     registry.registerLintRule(NoSingletonViewModel());
     registry.registerLintRule(NoTryCatchInDomain());
     registry.registerLintRule(SubscriptionCancelledInDispose());
+    registry.registerLintRule(VmUsesCapabilitiesOnly());
   }
 }

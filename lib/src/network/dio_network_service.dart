@@ -8,22 +8,22 @@ import 'package:logging/logging.dart';
 import 'package:mime/mime.dart';
 
 import '../data/arrk_exceptions.dart';
-import '../session/arrk_session_manager.dart';
 import 'platform/platform.dart';
+import 'request_headers_provider.dart';
 import 'rest_network_service.dart';
 
 /// Dio-backed [RestNetworkService].
 ///
 /// Products register one instance per API host (named registrations for
-/// secondary hosts), handing in the session manager whose [requestHeaders]
-/// authenticate every call. The [DataErrorInterceptor] maps Dio failures to
+/// secondary hosts), handing in the [RequestHeadersProvider] whose headers
+/// go on every call. The [DataErrorInterceptor] maps Dio failures to
 /// the typed `ArrkException`s before they reach the data layer.
 class DioNetworkService extends RestNetworkService {
   final Dio _dio;
-  final ArrkSessionManager sessionManager;
+  final RequestHeadersProvider headersProvider;
 
   DioNetworkService({
-    required this.sessionManager,
+    required this.headersProvider,
     required super.baseUrl,
     required super.isProd,
     required super.sendTimeout,
@@ -62,7 +62,7 @@ class DioNetworkService extends RestNetworkService {
         options: Options(
           method: request.method,
           contentType: 'multipart/form-data',
-          headers: {...sessionManager.requestHeaders},
+          headers: {...headersProvider.requestHeaders},
         ),
       );
       final res = response.data;
@@ -78,9 +78,9 @@ class DioNetworkService extends RestNetworkService {
   @override
   Future<Json> sendJsonRequest(JsonRequest request) async {
     try {
-      // Merge session headers with custom headers from the request.
+      // Merge the provider's headers with custom headers from the request.
       final headers = {
-        ...sessionManager.requestHeaders,
+        ...headersProvider.requestHeaders,
         if (request.headers != null) ...request.headers!,
       };
       final response = await _dio.request<dynamic>(
@@ -113,7 +113,7 @@ class DioNetworkService extends RestNetworkService {
   Future<ApiEnvelope> sendEnvelope(JsonRequest request) async {
     try {
       final headers = {
-        ...sessionManager.requestHeaders,
+        ...headersProvider.requestHeaders,
         if (request.headers != null) ...request.headers!,
       };
       final response = await _dio.request<dynamic>(

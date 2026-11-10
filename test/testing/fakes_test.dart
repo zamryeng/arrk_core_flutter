@@ -6,6 +6,17 @@ import 'package:arrk_core_flutter/events.dart';
 import 'package:arrk_core_flutter/testing.dart';
 import 'package:arrk_core_flutter/viewmodel.dart';
 
+/// Test-only events standing in for a product's sealed family.
+class _CountryPicked extends ArrkEvent {
+  const _CountryPicked({required this.countryCode, required super.firedAt});
+  final String countryCode;
+}
+
+class _LocalePicked extends ArrkEvent {
+  const _LocalePicked({required this.locale, required super.firedAt});
+  final Locale locale;
+}
+
 void main() {
   group('FakeClock', () {
     test('advance moves time forward by the given duration', () {
@@ -37,6 +48,7 @@ void main() {
         readLocal: () async => null,
         fetchRemote: () async => ++fetches,
         writeLocal: (_) async {},
+        clearLocal: () async {},
         clock: clock,
       );
 
@@ -65,21 +77,21 @@ void main() {
     tearDown(() => bus.destroy());
 
     test('records fired events in order', () {
-      bus.fire(SessionCountryChanged(countryCode: 'GH', firedAt: DateTime(2026)));
-      bus.fire(SessionCountryChanged(countryCode: 'NG', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'GH', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'NG', firedAt: DateTime(2026)));
 
       expect(bus.fired, hasLength(2));
       expect(
-        (bus.fired.first as SessionCountryChanged).countryCode,
+        (bus.fired.first as _CountryPicked).countryCode,
         'GH',
       );
     });
 
     test('still delivers events to subscribers', () async {
-      final received = <SessionCountryChanged>[];
-      final sub = bus.on<SessionCountryChanged>().listen(received.add);
+      final received = <_CountryPicked>[];
+      final sub = bus.on<_CountryPicked>().listen(received.add);
 
-      bus.fire(SessionCountryChanged(countryCode: 'GH', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'GH', firedAt: DateTime(2026)));
       await Future<void>.delayed(Duration.zero);
 
       expect(received.single.countryCode, 'GH');
@@ -87,46 +99,60 @@ void main() {
     });
 
     test('firedOfType returns only the matching type', () {
-      bus.fire(SessionCountryChanged(countryCode: 'GH', firedAt: DateTime(2026)));
-      bus.fire(SessionLocaleChanged(locale: const Locale('en'), firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'GH', firedAt: DateTime(2026)));
+      bus.fire(_LocalePicked(locale: const Locale('en'), firedAt: DateTime(2026)));
 
-      // Only SessionCountryChanged events.
-      final countries = bus.firedOfType<SessionCountryChanged>();
+      // Only _CountryPicked events.
+      final countries = bus.firedOfType<_CountryPicked>();
       expect(countries, hasLength(1));
       expect(countries.single.countryCode, 'GH');
     });
 
     test('didFire returns true once an event of that type has been fired', () {
-      expect(bus.didFire<SessionCountryChanged>(), isFalse);
-      bus.fire(SessionCountryChanged(countryCode: 'US', firedAt: DateTime(2026)));
-      expect(bus.didFire<SessionCountryChanged>(), isTrue);
+      expect(bus.didFire<_CountryPicked>(), isFalse);
+      bus.fire(_CountryPicked(countryCode: 'US', firedAt: DateTime(2026)));
+      expect(bus.didFire<_CountryPicked>(), isTrue);
     });
 
     test('clearRecorded resets the history without affecting subscriptions', () async {
       final received = <ArrkEvent>[];
       final sub = bus.all.listen(received.add);
 
-      bus.fire(SessionCountryChanged(countryCode: 'GH', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'GH', firedAt: DateTime(2026)));
       await Future<void>.delayed(Duration.zero);
 
       bus.clearRecorded();
       expect(bus.fired, isEmpty);
 
       // Subscription still active.
-      bus.fire(SessionCountryChanged(countryCode: 'NG', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'NG', firedAt: DateTime(2026)));
       await Future<void>.delayed(Duration.zero);
       expect(received, hasLength(2));
 
       await sub.cancel();
     });
 
+    test('is both an EventPublisher and an EventStream', () async {
+      final EventPublisher publisher = bus;
+      final EventStream events = bus;
+      final received = <_CountryPicked>[];
+      final sub = events.on<_CountryPicked>().listen(received.add);
+
+      publisher.fire(_CountryPicked(countryCode: 'KE', firedAt: DateTime(2026)));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(received.single.countryCode, 'KE');
+      expect(bus.didFire<_CountryPicked>(), isTrue);
+      await sub.cancel();
+    });
+
     test('fired exposes an unmodifiable view', () {
-      bus.fire(SessionCountryChanged(countryCode: 'GH', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'GH', firedAt: DateTime(2026)));
 
       expect(bus.fired, hasLength(1));
       expect(
         () => bus.fired.add(
-          SessionCountryChanged(countryCode: 'US', firedAt: DateTime(2026)),
+          _CountryPicked(countryCode: 'US', firedAt: DateTime(2026)),
         ),
         throwsUnsupportedError,
       );
@@ -136,13 +162,13 @@ void main() {
       final received = <ArrkEvent>[];
       final sub = bus.all.listen(received.add);
 
-      bus.fire(SessionCountryChanged(countryCode: 'A', firedAt: DateTime(2026)));
-      bus.fire(SessionCountryChanged(countryCode: 'B', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'A', firedAt: DateTime(2026)));
+      bus.fire(_CountryPicked(countryCode: 'B', firedAt: DateTime(2026)));
       await Future<void>.delayed(Duration.zero);
 
       expect(received, hasLength(2));
-      expect((received[0] as SessionCountryChanged).countryCode, 'A');
-      expect((received[1] as SessionCountryChanged).countryCode, 'B');
+      expect((received[0] as _CountryPicked).countryCode, 'A');
+      expect((received[1] as _CountryPicked).countryCode, 'B');
       await sub.cancel();
     });
 
@@ -154,10 +180,10 @@ void main() {
       final realBus = ArrkEventBus();
       addTearDown(realBus.destroy);
 
-      final received = <SessionCountryChanged>[];
-      final sub = realBus.on<SessionCountryChanged>().listen(received.add);
+      final received = <_CountryPicked>[];
+      final sub = realBus.on<_CountryPicked>().listen(received.add);
 
-      realBus.fire(SessionCountryChanged(countryCode: 'ZA', firedAt: DateTime(2026)));
+      realBus.fire(_CountryPicked(countryCode: 'ZA', firedAt: DateTime(2026)));
       await Future<void>.delayed(Duration.zero);
 
       expect(received.single.countryCode, 'ZA');
@@ -165,29 +191,24 @@ void main() {
     });
   });
 
-  group('NoopMessageHandler', () {
-    test('is callable without throwing', () {
-      final handler = NoopMessageHandler();
+  group('FakeMessageSink', () {
+    test('records pushes in order and filters by kind', () {
+      final sink = FakeMessageSink()
+        ..push(const UserMessage.error('a'))
+        ..push(const UserMessage.info('b'))
+        ..push(const UserMessage.error('c'));
 
-      // All four methods must complete without throwing.
-      handler.showError('error');
-      handler.showSuccess('success');
-      handler.showWarning('warning');
-      handler.showInfo('info');
+      expect(sink.pushed.map((m) => m.text), ['a', 'b', 'c']);
+      expect(sink.pushedOfKind(UserMessageKind.error).map((m) => m.text), ['a', 'c']);
+      expect(() => sink.pushed.add(const UserMessage.info('x')), throwsUnsupportedError);
+
+      sink.clearRecorded();
+      expect(sink.pushed, isEmpty);
     });
 
-    test('accepts optional heading parameter', () {
-      final handler = NoopMessageHandler();
-
-      handler.showError('error', 'heading');
-      handler.showSuccess('success', 'heading');
-      handler.showWarning('warning', 'heading');
-      handler.showInfo('info', 'heading');
-    });
-
-    test('implements MessageDisplayHandler', () {
-      final MessageDisplayHandler handler = NoopMessageHandler();
-      expect(handler, isA<NoopMessageHandler>());
+    test('is a MessageSink', () {
+      final MessageSink sink = FakeMessageSink();
+      expect(sink, isA<FakeMessageSink>());
     });
   });
 }

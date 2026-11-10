@@ -7,6 +7,9 @@ analyzer:
     strict-raw-types: true
   exclude:
     - lib/**.config.dart
+    - build/**
+    - android/**
+    - web/**
 
 # The arrk architecture lints, active exactly as a product would enable them
 # (products use a git: source pinned to a tag; the example uses the sibling
@@ -16,8 +19,11 @@ plugins:
     path: ../arrk_lints
     diagnostics:
       avoid_data_models_in_domain: true
+      capability_stateless: true
       event_bus_publisher_restriction: true
       event_naming_past_tense: true
+      event_subscribe_restriction: true
+      message_stream_restriction: true
       no_build_context_in_domain_or_data_or_services: true
       no_change_notifier_outside_vm: true
       no_cross_repo_calls: true
@@ -29,6 +35,7 @@ plugins:
       no_singleton_viewmodel: true
       no_try_catch_in_domain: true
       subscription_cancelled_in_dispose: true
+      vm_uses_capabilities_only: true
 
 linter:
   rules:

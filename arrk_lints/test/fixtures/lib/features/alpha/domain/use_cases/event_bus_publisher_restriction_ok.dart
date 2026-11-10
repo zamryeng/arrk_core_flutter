@@ -1,11 +1,14 @@
 import '../../../../_stubs.dart';
 
-// OK: UseCases (domain/use_cases/) are allowed to publish events.
+// OK: capabilities (domain/use_cases/) publish, through the bus or the
+// publisher half.
 class DoSomethingUseCase {
-  DoSomethingUseCase(this._bus);
+  DoSomethingUseCase(this._bus, this._publisher);
   final ArrkEventBus _bus;
+  final EventPublisher _publisher;
 
-  void call() {
+  void doIt() {
     _bus.fire(Object());
+    _publisher.fire(Object());
   }
 }

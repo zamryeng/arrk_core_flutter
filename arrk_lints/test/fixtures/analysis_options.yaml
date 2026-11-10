@@ -3,8 +3,11 @@ plugins:
     path: ../..
     diagnostics:
       avoid_data_models_in_domain: true
+      capability_stateless: true
       event_bus_publisher_restriction: true
       event_naming_past_tense: true
+      event_subscribe_restriction: true
+      message_stream_restriction: true
       no_build_context_in_domain_or_data_or_services: true
       no_change_notifier_outside_vm: true
       no_cross_repo_calls: true
@@ -16,6 +19,7 @@ plugins:
       no_singleton_viewmodel: true
       no_try_catch_in_domain: true
       subscription_cancelled_in_dispose: true
+      vm_uses_capabilities_only: true
 
 # The fixtures deliberately declare never-read private fields and similar
 # shapes; keep standard hygiene diagnostics from polluting a directory-mode

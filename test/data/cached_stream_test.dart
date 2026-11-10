@@ -38,6 +38,10 @@ class _Harness<T> {
         writeLocalCalls++;
         _local = value;
       },
+      clearLocal: () async {
+        clearLocalCalls++;
+        _local = null;
+      },
       clock: this.clock,
     );
   }
@@ -50,6 +54,7 @@ class _Harness<T> {
   int readLocalCalls = 0;
   int fetchRemoteCalls = 0;
   int writeLocalCalls = 0;
+  int clearLocalCalls = 0;
   Future<T> Function()? onFetch;
 
   /// Overrides the default [readLocal] body when set (e.g. to throw).
@@ -213,6 +218,28 @@ void main() {
   });
 
   group('CachedStream — invalidate', () {
+    test('invalidate during a refresh leaves the cache stale', () async {
+      final gate = Completer<int>();
+      final h = _Harness<int>()..onFetch = () => gate.future;
+      final emitted = <int>[];
+      final sub = h.stream.stream.listen(emitted.add);
+      await Future<void>.delayed(Duration.zero);
+
+      final inFlight = h.stream.refresh();
+      await h.stream.invalidate();
+      gate.complete(5);
+      await inFlight;
+      await Future<void>.delayed(Duration.zero);
+
+      // The value still lands...
+      expect(h.stream.current, 5);
+      expect(emitted, contains(5));
+      expect(h.writeLocalCalls, 1);
+      // ...but the invalidation is not lost.
+      expect(h.stream.isStale, isTrue);
+      await sub.cancel();
+    });
+
     test('marks cache stale without clearing current', () async {
       final h = _Harness<int>()..onFetch = () async => 1;
       await h.stream.refresh();
@@ -281,6 +308,102 @@ void main() {
       expect(emissions.last, 2);
 
       await sub.cancel();
+    });
+  });
+
+  group('CachedStream — clear', () {
+    test('drops the value and marks the cache stale', () async {
+      final h = _Harness<int>()..onFetch = () async => 7;
+      await h.stream.refresh();
+      expect(h.stream.current, 7);
+      expect(h.stream.isStale, isFalse);
+
+      await h.stream.clear();
+
+      expect(h.stream.current, isNull);
+      expect(h.stream.isStale, isTrue);
+    });
+
+    test('calls clearLocal once', () async {
+      final h = _Harness<int>(initialLocal: 3)..onFetch = () async => 3;
+      await h.stream.clear();
+      expect(h.clearLocalCalls, 1);
+      expect(h.local, isNull);
+    });
+
+    test('a refresh started before clear emits and writes nothing', () async {
+      final gate = Completer<int>();
+      final h = _Harness<int>()..onFetch = () => gate.future;
+      final emitted = <int>[];
+      final sub = h.stream.stream.listen(emitted.add);
+      await Future<void>.delayed(Duration.zero);
+
+      final inFlight = h.stream.refresh();
+      await h.stream.clear();
+      gate.complete(41);
+      final result = await inFlight;
+
+      // The old caller still gets its own result.
+      expect(result.data, 41);
+      // Nothing landed in the cache.
+      expect(emitted, isEmpty);
+      expect(h.writeLocalCalls, 0);
+      expect(h.stream.current, isNull);
+      expect(h.stream.isStale, isTrue);
+      await sub.cancel();
+    });
+
+    test('a refresh after clear fetches again', () async {
+      final gate = Completer<int>();
+      final h = _Harness<int>()..onFetch = () => gate.future;
+      final first = h.stream.refresh();
+      await h.stream.clear();
+
+      h.onFetch = () async => 2;
+      final second = await h.stream.refresh();
+
+      expect(h.fetchRemoteCalls, 2);
+      expect(second.data, 2);
+      expect(h.stream.current, 2);
+
+      // The dropped refresh finishing late does not overwrite the new value.
+      gate.complete(1);
+      await first;
+      expect(h.stream.current, 2);
+    });
+
+    test('a new stream listener after clear gets no replay', () async {
+      final h = _Harness<int>()..onFetch = () async => 7;
+      await h.stream.refresh();
+      await h.stream.clear();
+
+      final gate = Completer<int>();
+      h.onFetch = () => gate.future;
+      final emitted = <int>[];
+      final sub = h.stream.stream.listen(emitted.add);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(emitted, isEmpty);
+      gate.complete(8);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(emitted, [8]);
+      await sub.cancel();
+    });
+
+    test('hydrates again on the next first listen', () async {
+      final h = _Harness<int>(initialLocal: 1)..onFetch = () async => 1;
+      final sub1 = h.stream.stream.listen((_) {});
+      await Future<void>.delayed(Duration.zero);
+      await sub1.cancel();
+
+      await h.stream.clear();
+      final sub2 = h.stream.stream.listen((_) {});
+      await Future<void>.delayed(Duration.zero);
+
+      expect(h.readLocalCalls, 2);
+      await sub2.cancel();
     });
   });
 
@@ -436,6 +559,7 @@ void main() {
         readLocal: () async => null,
         fetchRemote: () async => 1,
         writeLocal: (_) async {},
+        clearLocal: () async {},
       );
 
       await stream.refresh();

@@ -9,13 +9,32 @@
 # pass them explicitly to `dart analyze`. (Per-file args work under both
 # `dart analyze` and `flutter analyze`; we use `dart analyze` here.)
 #
+# The output goes through baseline.py: the run fails only on violations
+# that are not in the project's arrk_baseline.txt (one `rule|file|message`
+# line per violation, no line numbers). With no baseline file, every
+# violation fails.
+#
 # Usage:
-#   arrk_lints/run.sh [project_dir]   # defaults to the current directory
+#   arrk_lints/run.sh [project_dir]            # gate; defaults to cwd
+#   arrk_lints/run.sh --update [project_dir]   # rewrite arrk_baseline.txt
+#   arrk_lints/run.sh --report [project_dir]   # violation count per rule
 set -euo pipefail
+
+MODE=check
+case "${1:-}" in
+  --update) MODE=update; shift ;;
+  --report) MODE=report; shift ;;
+  --*) echo "Unknown option: $1" >&2; exit 2 ;;
+esac
 
 LINTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 TARGET_DIR="${1:-$PWD}"
 cd "$TARGET_DIR"
+
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "run.sh needs python3 for the baseline gate." >&2
+  exit 1
+fi
 
 # Resolve the Dart command. Prefer fvm when the project is fvm-managed.
 if [ -d .fvm ] && command -v fvm >/dev/null 2>&1; then
@@ -49,4 +68,6 @@ if [ "${#files[@]}" -eq 0 ]; then
 fi
 
 echo "Analyzing ${#files[@]} files with arrk_lints..." >&2
-"${DART[@]}" analyze "${files[@]}"
+# dart analyze exits non-zero whenever it finds anything; the gate decides.
+output="$("${DART[@]}" analyze "${files[@]}" 2>&1 || true)"
+printf '%s\n' "$output" | python3 "$LINTS_DIR/baseline.py" "$MODE" "$PWD/arrk_baseline.txt"

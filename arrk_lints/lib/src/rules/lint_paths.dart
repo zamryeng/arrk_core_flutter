@@ -52,18 +52,21 @@ bool isInFeatures(String path) => libRelative(path).startsWith('lib/features/');
 /// Whether [path] is anywhere under `lib/services/`.
 bool isInServices(String path) => libRelative(path).startsWith('lib/services/');
 
-/// Whether [path] is inside a feature's `domain/use_cases/` folder — the only
-/// place (besides the session manager) allowed to publish events.
+/// Whether [path] is inside a feature's `domain/use_cases/` folder — the
+/// capabilities, the only place allowed to publish events.
 bool isInUseCases(String path) {
   final rel = libRelative(path);
   return rel.startsWith('lib/features/') && rel.contains('/domain/use_cases/');
 }
 
-/// Whether [path] is inside the session manager service folder.
-bool isInSessionManager(String path) =>
-    libRelative(path).startsWith('lib/services/session_manager/');
-
 /// Whether [path] is a route-builder file under a feature's `ui/.navigation/`
 /// folder — the sanctioned place to construct a view's `model:` via the
 /// service locator.
 bool isInUiNavigation(String path) => path.contains('/ui/.navigation/');
+
+/// Whether [path] is where a product wires DI: `lib/di/`, or the
+/// composition root `lib/app/` (doctrine puts `di.dart` there).
+bool isInDi(String path) {
+  final rel = libRelative(path);
+  return rel.startsWith('lib/di/') || rel.startsWith('lib/app/');
+}

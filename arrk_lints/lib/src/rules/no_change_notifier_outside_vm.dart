@@ -7,16 +7,15 @@ import 'package:analyzer/error/error.dart';
 
 import 'ast_helpers.dart';
 
-/// Bans `extends ChangeNotifier` outside the `ArrkViewModel` base and the
-/// `ArrkSessionManager` carve-out. Everything else uses streams
-/// (repos/services).
+/// Bans `extends ChangeNotifier` outside the `ArrkViewModel` base.
+/// Everything else uses streams (repos/services).
 class NoChangeNotifierOutsideVm extends AnalysisRule {
   NoChangeNotifierOutsideVm()
     : super(
         name: _name,
         description:
-            'ChangeNotifier is reserved for ArrkViewModel and the '
-            'ArrkSessionManager carve-out. Repos and services expose streams.',
+            'ChangeNotifier is reserved for ArrkViewModel. Repos and '
+            'services expose streams.',
       );
 
   static const _name = 'no_change_notifier_outside_vm';
@@ -26,15 +25,14 @@ class NoChangeNotifierOutsideVm extends AnalysisRule {
     "'{0}' extends ChangeNotifier outside the allowed places.",
     correctionMessage:
         'Extend ArrkViewModel for view state, or expose streams from a repo / '
-        'service. The only ChangeNotifier carve-outs are ArrkViewModel and '
-        'ArrkSessionManager.',
+        'service. ArrkViewModel is the only ChangeNotifier carve-out.',
     severity: DiagnosticSeverity.WARNING,
   );
 
-  /// Project carve-outs allowed to be ChangeNotifiers (by their own name, or as
-  /// a supertype — every `ArrkViewModel` subclass reaches ChangeNotifier
+  /// The carve-out allowed to be a ChangeNotifier (by its own name, or as a
+  /// supertype — every `ArrkViewModel` subclass reaches ChangeNotifier
   /// through it and is fine).
-  static const _allowedNames = {'ArrkViewModel', 'ArrkSessionManager'};
+  static const _allowedNames = {'ArrkViewModel'};
 
   /// Flutter framework types that are themselves ChangeNotifiers and are
   /// legitimate to subclass (e.g. a custom `TextEditingController`). Reaching
