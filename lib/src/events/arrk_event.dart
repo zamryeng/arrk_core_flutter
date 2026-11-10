@@ -12,6 +12,6 @@
 abstract class ArrkEvent {
   const ArrkEvent({required this.firedAt});
 
-  /// When the publishing usecase / session-state mutation completed.
+  /// When the publishing capability completed its action.
   final DateTime firedAt;
 }

@@ -5,28 +5,30 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/error/error.dart';
 
+import 'ast_helpers.dart';
 import 'lint_paths.dart';
 
-/// Repos (`lib/features/*/data/`) must not reference `ArrkEventBus` at all —
-/// not to fire, not to subscribe. Events are a domain concern; the data
+/// Repos (`lib/features/*/data/`) must not reference `ArrkEventBus`,
+/// `EventPublisher` or `EventStream` at all — not to fire, not to subscribe. Events are a domain concern; the data
 /// layer sits below it and stays swappable.
 class NoEventBusInRepo extends AnalysisRule {
   NoEventBusInRepo()
     : super(
         name: _name,
         description:
-            'The data layer must not know about ArrkEventBus. Events are a '
-            'domain concern handled by UseCases and ViewModels.',
+            'The data layer must not know about the event bus. Capabilities '
+            'publish; the reactions class subscribes.',
       );
 
   static const _name = 'no_event_bus_in_repo';
 
   static const _code = LintCode(
     _name,
-    'ArrkEventBus referenced inside the data layer.',
+    'Event bus type referenced inside the data layer.',
     correctionMessage:
-        'Remove the event-bus dependency from the repo. Let a UseCase or VM '
-        'fire/subscribe; the repo only records data.',
+        'Remove the event-bus dependency from the repo. A capability '
+        'publishes; the reactions class subscribes; the repo owns state and '
+        'exposes streams.',
     severity: DiagnosticSeverity.WARNING,
   );
 
@@ -50,7 +52,7 @@ class _Visitor extends SimpleAstVisitor<void> {
 
   @override
   void visitNamedType(NamedType node) {
-    if (node.name.lexeme == 'ArrkEventBus') {
+    if (eventBusTypes.contains(node.name.lexeme)) {
       rule.reportAtNode(node);
     }
   }

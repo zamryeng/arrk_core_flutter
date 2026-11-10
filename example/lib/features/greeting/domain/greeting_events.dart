@@ -6,8 +6,8 @@ sealed class GreetingEvent extends ArrkEvent {
   const GreetingEvent({required super.firedAt});
 }
 
-/// A greeting was delivered. Fired by `SendGreetingUseCase` after the repo
-/// confirms the send.
+/// A greeting was delivered. Published by `SendGreetingUseCase` after the
+/// repo confirms the send; `AppReactions` maps it to the activity log.
 final class GreetingSent extends GreetingEvent {
   const GreetingSent({required this.recipientName, required super.firedAt});
 

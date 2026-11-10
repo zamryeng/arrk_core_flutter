@@ -65,7 +65,7 @@ class _Visitor extends SimpleAstVisitor<void> {
     final collector = _RepoReferenceCollector(ownName);
     // Only members — the class header (extends ArrkRepository, or an
     // intermediate `extends SomeBaseRepo`) is not a cross-repo call.
-    for (final member in node.members) {
+    for (final member in node.body.members) {
       member.accept(collector);
     }
     for (final hit in collector.hits) {

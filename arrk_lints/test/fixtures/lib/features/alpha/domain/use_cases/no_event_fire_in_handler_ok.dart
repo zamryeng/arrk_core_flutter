@@ -1,19 +1,11 @@
 import '../../../../_stubs.dart';
 
+// OK: a capability publishes outside any handler.
 class WellBehavedUseCase {
-  WellBehavedUseCase(this._bus);
-  final ArrkEventBus _bus;
+  WellBehavedUseCase(this._publisher);
+  final EventPublisher _publisher;
 
-  // OK: firing outside a listen() handler (this is also the right place to
-  // publish, per event_bus_publisher_restriction).
   void publish() {
-    _bus.fire(Object());
-  }
-
-  // OK: the handler only consumes; it does not re-fire.
-  void wire() {
-    _bus.on<Object>().listen((event) {
-      event.toString();
-    });
+    _publisher.fire(Object());
   }
 }

@@ -2,6 +2,13 @@ import 'dart:async';
 
 import 'package:rxdart/rxdart.dart';
 
+/// Marks a cleared slot in [RefCountedSubject].
+const Object _cleared = _Cleared();
+
+class _Cleared {
+  const _Cleared();
+}
+
 /// A [BehaviorSubject] wrapper that tracks subscriber count and fires
 /// edge callbacks when the count transitions through zero.
 ///
@@ -11,25 +18,25 @@ import 'package:rxdart/rxdart.dart';
 /// Used by [CachedStream] to drive demand-driven hydration and refresh:
 /// no subscribers means no work. Package-internal — not exported.
 class RefCountedSubject<T> {
-  RefCountedSubject({
-    void Function()? onFirstListen,
-    void Function()? onLastCancel,
-  }) : _onFirstListen = onFirstListen,
-       _onLastCancel = onLastCancel {
-    _subject = BehaviorSubject<T>(
+  RefCountedSubject({this._onFirstListen, this._onLastCancel}) {
+    _subject = BehaviorSubject<Object?>(
       onListen: _handleListen,
       onCancel: _handleCancel,
     );
   }
 
-  late final BehaviorSubject<T> _subject;
+  /// Holds either a `T` or [_cleared]. Typed `Object?` so a cleared slot
+  /// can replay "nothing" without closing the subject.
+  late final BehaviorSubject<Object?> _subject;
   final void Function()? _onFirstListen;
   final void Function()? _onLastCancel;
   int _listenerCount = 0;
 
-  Stream<T> get stream => _subject.stream;
-  T? get valueOrNull => _subject.valueOrNull;
-  bool get hasValue => _subject.hasValue;
+  /// Values only. After [clear], a new listener gets no replay.
+  Stream<T> get stream => _subject.stream.where(_isValue).cast<T>();
+
+  T? get valueOrNull => hasValue ? _subject.value as T : null;
+  bool get hasValue => _subject.hasValue && _isValue(_subject.value);
   bool get isClosed => _subject.isClosed;
 
   /// Whether the subject currently has a subscriber.
@@ -44,7 +51,16 @@ class RefCountedSubject<T> {
     _subject.add(value);
   }
 
+  /// Drops the held value. Mounted listeners receive nothing; new listeners
+  /// get no replay until the next [add].
+  void clear() {
+    if (_subject.isClosed || !hasValue) return;
+    _subject.add(_cleared);
+  }
+
   Future<void> close() => _subject.close();
+
+  static bool _isValue(Object? v) => !identical(v, _cleared);
 
   void _handleListen() {
     _listenerCount++;

@@ -3,26 +3,25 @@ description: >-
   Arrk's Flutter core: base classes and plumbing for the four-layer
   architecture — view models, views, repositories, responses, events,
   navigation, network, services, session, and DI wiring.
-version: 0.1.0
-homepage: https://github.com/doleasoft/arrk_core_flutter
+version: 0.1.1
 publish_to: none
 
 environment:
-  sdk: ^3.8.0
-  flutter: ">=3.24.0"
+  sdk: ^3.13.7
+  flutter: ">=3.47.8"
 
 dependencies:
   flutter:
     sdk: flutter
-  dio: ^5.9.0
+  dio: ^5.11.1
   event_bus: ^2.0.1
-  get_it: ^9.1.0
-  go_router: ^17.0.0
+  get_it: ^9.3.0
+  go_router: ^18.1.4
   http_parser: ^4.1.2
-  injectable: ^2.6.0
+  injectable: ^3.0.0
   logging: ^1.3.0
-  mime: ^2.0.0
-  provider: ^6.1.5
+  mime: ^2.1.0
+  provider: ^6.1.5+1
   rxdart: ^0.28.0
 
 dev_dependencies:

@@ -1,16 +1,17 @@
 import 'package:arrk_core_flutter/viewmodel.dart';
 import 'package:injectable/injectable.dart';
 
+import '../domain/dtos/greeting_draft_dto.dart';
 import '../domain/models/greeting_tone.dart';
 import '../domain/use_cases/send_greeting_use_case.dart';
-import '.navigation/greeting_router.dart';
 
-/// Screen glue for the compose step: holds form values, forwards to the
-/// usecase, routes on success. No business decisions — validation and
-/// preview derivation live in [SendGreetingUseCase].
+/// Screen glue for the compose step: holds form values and forwards to the
+/// capability. No business decisions — validation and preview derivation
+/// live in [SendGreetingUseCase]. It never navigates: [onPreview] returns
+/// the draft and the view routes on it.
 @injectable
 class ComposeGreetingVm extends ArrkViewModel {
-  ComposeGreetingVm(this._sendGreeting);
+  ComposeGreetingVm(this._sendGreeting, super.messageSink);
 
   final SendGreetingUseCase _sendGreeting;
 
@@ -24,14 +25,16 @@ class ComposeGreetingVm extends ArrkViewModel {
     setState();
   }
 
-  Future<void> onPreview() async {
+  /// The draft to preview, or null when it could not be prepared (the
+  /// error is already shown).
+  Future<GreetingDraftDto?> onPreview() async {
     setState(VmState.busy);
     final result = await _sendGreeting.prepareDraft(recipientName: recipientName, tone: tone);
     if (result.hasError) {
       handleErrorAndSetVmState(result.error!);
-      return;
+      return null;
     }
     setState(VmState.none);
-    GreetingRouter.preview(result.data!);
+    return result.data;
   }
 }

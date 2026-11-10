@@ -67,7 +67,7 @@ class _Visitor extends SimpleAstVisitor<void> {
     final methodsByName = <String, MethodDeclaration>{};
     MethodDeclaration? dispose;
 
-    for (final member in node.members) {
+    for (final member in node.body.members) {
       if (member is FieldDeclaration) {
         final type = member.fields.type;
         if (type is NamedType && type.name.lexeme == 'StreamSubscription') {

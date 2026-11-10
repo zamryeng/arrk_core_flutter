@@ -11,8 +11,8 @@ import 'lint_paths.dart';
 ///
 /// The architecture deletes the manager pattern from features: state +
 /// orchestration split into stateful repos + stateless UseCases + factory
-/// VMs. The `Manager` suffix is reserved for system-level state holders in
-/// `lib/services/` (e.g. `ArrkSessionManager`).
+/// VMs. The `Manager` suffix is reserved for services in `lib/services/`
+/// that hold technical state (e.g. a `ConnectionManager`), never app state.
 class NoManagerInFeatures extends AnalysisRule {
   NoManagerInFeatures()
     : super(

@@ -3,10 +3,11 @@ import 'package:arrk_core_flutter/view.dart';
 import 'package:flutter/material.dart';
 
 import '../domain/models/greeting_tone.dart';
+import '.navigation/greeting_router.dart';
 import 'compose_greeting_vm.dart';
 
 /// Screen 1: compose a greeting. Renders form state, delegates every
-/// decision to the VM.
+/// decision to the VM, and navigates on what the VM returns.
 class ComposeGreetingView extends StatelessWidget {
   const ComposeGreetingView({super.key});
 
@@ -40,7 +41,12 @@ class ComposeGreetingView extends StatelessWidget {
               ),
               const Spacer(),
               FilledButton(
-                onPressed: vm.isBusy ? null : vm.onPreview,
+                onPressed: vm.isBusy
+                    ? null
+                    : () async {
+                        final draft = await vm.onPreview();
+                        if (draft != null) GreetingRouter.preview(draft);
+                      },
                 child: vm.isBusy
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator())
                     : const Text('Preview'),

@@ -7,26 +7,31 @@ import 'package:analyzer/error/error.dart';
 
 import 'ast_helpers.dart';
 
-/// Bans firing an event from inside an event-handler closure
-/// (`bus.on<T>().listen((e) { bus.fire(...); })`). Handlers consume only —
-/// re-publishing creates untraceable signal loops.
+/// Handlers never publish. Flags:
+/// - `fire(...)` inside an event-handler closure
+///   (`bus.on<T>().listen((e) { bus.fire(...); })`);
+/// - any reference to `EventPublisher` or `ArrkEventBus` inside a class that
+///   extends `ArrkReactions`.
+///
+/// Re-publishing from a handler creates untraceable signal loops.
 class NoEventFireInHandler extends AnalysisRule {
   NoEventFireInHandler()
     : super(
         name: _name,
         description:
-            'ArrkEventBus handlers must not fire events. Re-publishing inside '
-            'a listener creates cycles.',
+            'Event handlers and the ArrkReactions class must not publish. '
+            'Re-publishing inside a handler creates cycles.',
       );
 
   static const _name = 'no_event_fire_in_handler';
 
   static const _code = LintCode(
     _name,
-    'ArrkEventBus.fire(...) inside an event-handler closure.',
+    'Publishing from an event handler.',
     correctionMessage:
-        'Handlers consume only. Move the follow-up emit to the original '
-        'publisher (the UseCase that caused the first event).',
+        'Handlers consume only. The reactions class calls capabilities; if a '
+        'follow-up event is needed, the capability that caused the first '
+        'event publishes it.',
     severity: DiagnosticSeverity.WARNING,
   );
 
@@ -38,7 +43,9 @@ class NoEventFireInHandler extends AnalysisRule {
     RuleVisitorRegistry registry,
     RuleContext context,
   ) {
-    registry.addMethodInvocation(this, _Visitor(this));
+    final visitor = _Visitor(this);
+    registry.addMethodInvocation(this, visitor);
+    registry.addNamedType(this, visitor);
   }
 }
 
@@ -50,10 +57,19 @@ class _Visitor extends SimpleAstVisitor<void> {
   @override
   void visitMethodInvocation(MethodInvocation node) {
     if (node.methodName.name != 'fire') return;
-    if (staticTypeName(node.realTarget) != 'ArrkEventBus') return;
+    if (!typeIsOrExtends(node.realTarget?.staticType, publisherTypes)) return;
+    // Inside an ArrkReactions class the type reference is already reported.
+    if (isInsideClassExtending(node, const {'ArrkReactions'})) return;
     if (_isInsideListenClosure(node)) {
       rule.reportAtNode(node.methodName);
     }
+  }
+
+  @override
+  void visitNamedType(NamedType node) {
+    if (!publisherTypes.contains(node.name.lexeme)) return;
+    if (!isInsideClassExtending(node, const {'ArrkReactions'})) return;
+    rule.reportAtNode(node);
   }
 
   /// Walks ancestors looking for a closure that is an argument to a `.listen`

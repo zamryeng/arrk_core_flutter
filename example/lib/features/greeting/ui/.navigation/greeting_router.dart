@@ -7,7 +7,8 @@ import '../compose_greeting_view.dart';
 import '../preview_greeting_view.dart';
 
 /// The greeting feature's router: routes aggregated by the app router,
-/// typed verb methods callable context-free from VMs and views.
+/// typed verb methods callable context-free from views. View models never
+/// navigate.
 final class GreetingRouter {
   GreetingRouter._();
 

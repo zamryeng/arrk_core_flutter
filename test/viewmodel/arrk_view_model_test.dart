@@ -1,29 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:arrk_core_flutter/responses.dart';
-import 'package:arrk_core_flutter/viewmodel.dart';
 import 'package:arrk_core_flutter/testing.dart';
-
-/// Recording [MessageDisplayHandler] that captures calls for assertions.
-class _RecordingMessageHandler implements MessageDisplayHandler {
-  final List<String> errors = <String>[];
-  final List<String> successes = <String>[];
-  final List<String> warnings = <String>[];
-  final List<String> infos = <String>[];
-
-  @override
-  void showError(String message, [String? heading]) => errors.add(message);
-  @override
-  void showSuccess(String message, [String? heading]) => successes.add(message);
-  @override
-  void showWarning(String message, [String? heading]) => warnings.add(message);
-  @override
-  void showInfo(String message, [String? heading]) => infos.add(message);
-}
+import 'package:arrk_core_flutter/viewmodel.dart';
 
 /// Minimal concrete VM for testing the base-class surface.
 class _TestViewModel extends ArrkViewModel {
-  _TestViewModel([super.handler]);
+  _TestViewModel(super.messageSink);
+
+  void publicShowSuccess(String text, [String? heading]) => showSuccess(text, heading);
+  void publicShowWarning(String text, [String? heading]) => showWarning(text, heading);
+  void publicShowInfo(String text, [String? heading]) => showInfo(text, heading);
 
   void publicSetState([VmState? state]) => setState(state);
 
@@ -35,11 +21,11 @@ class _TestViewModel extends ArrkViewModel {
 }
 
 void main() {
-  late _RecordingMessageHandler handler;
+  late FakeMessageSink handler;
   late _TestViewModel vm;
 
   setUp(() {
-    handler = _RecordingMessageHandler();
+    handler = FakeMessageSink();
     vm = _TestViewModel(handler);
   });
 
@@ -154,38 +140,51 @@ void main() {
   });
 
   group('handleError', () {
-    test('records lastFailure when VM has listeners', () {
-      final failure = ServerFailure(message: 'oops');
-      vm.addListener(() {});
+    test('pushes an error message and sets lastFailure', () {
+      final failure = ServerFailure(message: 'server down');
+      vm.publicHandleError(failure, 'Heads up');
+      expect(vm.lastFailure, same(failure));
+      expect(handler.pushed.single, const UserMessage.error('server down', heading: 'Heads up'));
+    });
+
+    test('pushes without listeners', () {
+      final failure = ServerFailure(message: 'unmounted');
       vm.publicHandleError(failure);
       expect(vm.lastFailure, same(failure));
-    });
-
-    test('shows message when VM has listeners', () {
-      vm.addListener(() {});
-      vm.publicHandleError(ServerFailure(message: 'server down'));
-      expect(handler.errors, contains('server down'));
-    });
-
-    test('does NOT record lastFailure when VM has no listeners', () {
-      final failure = ServerFailure(message: 'silent');
-      // No listeners added.
-      vm.publicHandleError(failure);
-      expect(vm.lastFailure, isNull);
-    });
-
-    test('does NOT show message when VM has no listeners', () {
-      vm.publicHandleError(ServerFailure(message: 'should not show'));
-      expect(handler.errors, isEmpty);
+      expect(handler.pushedOfKind(UserMessageKind.error), hasLength(1));
     });
 
     test('updates lastFailure on each call', () {
-      vm.addListener(() {});
       final f1 = ServerFailure(message: 'first');
       final f2 = InputFailure(message: 'second');
       vm.publicHandleError(f1);
       vm.publicHandleError(f2);
       expect(vm.lastFailure, same(f2));
+      expect(handler.pushed.map((m) => m.text), ['first', 'second']);
+    });
+  });
+
+  group('show helpers', () {
+    test('push success, warning and info messages', () {
+      vm
+        ..publicShowSuccess('saved')
+        ..publicShowWarning('careful', 'Note')
+        ..publicShowInfo('fyi');
+      expect(handler.pushed, const [
+        UserMessage.success('saved'),
+        UserMessage.warning('careful', heading: 'Note'),
+        UserMessage.info('fyi'),
+      ]);
+    });
+
+    test('all four push after dispose', () {
+      final localVm = _TestViewModel(handler)..dispose();
+      localVm
+        ..publicHandleError(ServerFailure(message: 'late error'))
+        ..publicShowSuccess('late success')
+        ..publicShowWarning('late warning')
+        ..publicShowInfo('late info');
+      expect(handler.pushed, hasLength(4));
     });
   });
 
@@ -199,22 +198,6 @@ void main() {
       // Should not throw or notify.
       localVm.publicSetState(VmState.busy);
       expect(localVm.viewState, VmState.busy); // state updated but no notify
-    });
-  });
-
-  group('constructor resolves MessageDisplayHandler from ServiceLocator', () {
-    tearDown(() async {
-      await GetIt.instance.reset();
-    });
-
-    test('resolves NoopMessageHandler registered in GetIt', () {
-      GetIt.instance.registerSingleton<MessageDisplayHandler>(NoopMessageHandler());
-
-      final resolvedVm = _TestViewModel(); // no explicit handler
-      resolvedVm.addListener(() {});
-      // Should not throw — handler is resolved from DI.
-      resolvedVm.publicHandleError(ServerFailure(message: 'test'));
-      resolvedVm.dispose();
     });
   });
 

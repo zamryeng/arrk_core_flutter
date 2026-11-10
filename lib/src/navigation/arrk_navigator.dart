@@ -7,10 +7,11 @@ import 'arrk_route.dart';
 /// Navigation wrapper over GoRouter: one API for routes, dialogs, and
 /// bottom sheets.
 ///
-/// Views and view models navigate through [ArrkNavigator.main] (backed by
+/// Views navigate through [ArrkNavigator.main] (backed by
 /// [mainNavigatorKey], which the product hands to its `GoRouter`
 /// configuration) — never through raw `context.go*` calls, so navigation
-/// stays loggable and testable.
+/// stays loggable and testable. View models never navigate: they return
+/// what the view needs to decide where to go.
 class ArrkNavigator {
   ArrkNavigator.of(this._navigationContext);
   ArrkNavigator.ofKey(GlobalKey<NavigatorState> mainNavigatorKey)

@@ -4,6 +4,10 @@ import '../events/arrk_event_bus.dart';
 /// [ArrkEventBus] that records every fired event for synchronous assertions,
 /// while still delivering to live subscribers like the real bus.
 ///
+/// It is both an `EventPublisher` and an `EventStream`: hand it to a
+/// capability under test as the publisher, or to an `ArrkReactions` under
+/// test as the stream.
+///
 /// ```dart
 /// final bus = FakeArrkEventBus();
 /// // ... exercise code that publishes ...
@@ -11,8 +15,8 @@ import '../events/arrk_event_bus.dart';
 /// expect(bus.firedOfType<OrderPlaced>().single.orderId, 'abc');
 /// ```
 ///
-/// Subscriptions via [on] / [all] behave exactly as the real bus, so a VM
-/// under test can subscribe to this fake and react to events you fire.
+/// Subscriptions via [on] / [all] behave exactly as the real bus, so a
+/// reactions class under test receives the events you fire.
 class FakeArrkEventBus extends ArrkEventBus {
   final List<ArrkEvent> _fired = <ArrkEvent>[];
 

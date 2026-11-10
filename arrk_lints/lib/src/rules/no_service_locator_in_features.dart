@@ -117,7 +117,7 @@ class _Visitor extends SimpleAstVisitor<void> {
     for (AstNode? current = node; current != null; current = current.parent) {
       // A default parameter value is construction-time, even when it appears
       // in a method's parameter list.
-      if (current is DefaultFormalParameter) return false;
+      if (current is FormalParameterDefaultClause) return false;
       // Constructor initializers and constructor bodies are the sanctioned
       // fallback-injection site.
       if (current is ConstructorDeclaration) return false;

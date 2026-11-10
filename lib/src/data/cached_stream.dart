@@ -21,6 +21,12 @@ import 'ref_counted_subject.dart';
 /// - On [refresh]: runs [fetchRemote], writes via [writeLocal], emits.
 ///   Returns a [DataResponse] (typed [Failure] on error, never throws).
 /// - On [invalidate]: marks stale. Next subscribe triggers refresh.
+/// - On [clear]: drops the value, marks stale, deletes the local copy via
+///   [clearLocal]. A fetch started before the clear never lands.
+///
+/// Failures reach callers through [refresh], which returns a [DataResponse].
+/// A screen that must show a failed load calls [refresh] and handles the
+/// response; it does not rely on the fetch the first listen starts.
 ///
 /// Time is read via [Clock.current] by default. Tests may pass an explicit
 /// [Clock] to isolate from ambient state.
@@ -28,14 +34,12 @@ class CachedStream<T> {
   CachedStream({
     required this.ttl,
     required this.cacheKey,
-    required Future<T?> Function() readLocal,
-    required Future<T> Function() fetchRemote,
-    required Future<void> Function(T value) writeLocal,
+    required this._readLocal,
+    required this._fetchRemote,
+    required this._writeLocal,
+    required this._clearLocal,
     Clock? clock,
-  }) : _readLocal = readLocal,
-       _fetchRemote = fetchRemote,
-       _writeLocal = writeLocal,
-       _clock = clock ?? Clock.current {
+  }) : _clock = clock ?? Clock.current {
     _subject = RefCountedSubject<T>(
       onFirstListen: _handleFirstListen,
       onLastCancel: _handleLastCancel,
@@ -47,12 +51,21 @@ class CachedStream<T> {
   final Future<T?> Function() _readLocal;
   final Future<T> Function() _fetchRemote;
   final Future<void> Function(T value) _writeLocal;
+  final Future<void> Function() _clearLocal;
   final Clock _clock;
 
   late final RefCountedSubject<T> _subject;
   DateTime? _lastFetchedAt;
   Future<DataResponse<T>>? _pendingRefresh;
   bool _hydrated = false;
+
+  /// Bumped by [clear]. Work that started under an older generation must not
+  /// store, persist or emit anything.
+  int _clearGeneration = 0;
+
+  /// Bumped by [invalidate] and [clear]. A refresh that started under an
+  /// older generation may store its value but must not mark the cache fresh.
+  int _staleGeneration = 0;
 
   /// The broadcast stream of cached values. Subscribe to receive the
   /// current cached value (if any) and all subsequent emissions.
@@ -73,10 +86,19 @@ class CachedStream<T> {
   ///
   /// Never throws — errors are wrapped into [DataResponse.error]. On success,
   /// the new value is written via [writeLocal] and emitted on [stream].
+  ///
+  /// If [clear] runs while this refresh is in flight, the fetched value is
+  /// still returned to this caller, but it is not written, not emitted and
+  /// does not mark the cache fresh.
   Future<DataResponse<T>> refresh() {
     final pending = _pendingRefresh;
     if (pending != null) return pending;
-    final tracked = _runRefresh().whenComplete(() => _pendingRefresh = null);
+    late final Future<DataResponse<T>> tracked;
+    tracked = _runRefresh().whenComplete(() {
+      // A clear() may have dropped this refresh and a newer one may own
+      // the slot now; only release it if it is still ours.
+      if (identical(_pendingRefresh, tracked)) _pendingRefresh = null;
+    });
     _pendingRefresh = tracked;
     return tracked;
   }
@@ -91,13 +113,34 @@ class CachedStream<T> {
   /// The lazy path exists for reactions to cross-feature events: mark the
   /// cache stale, let the next mounted screen pay for the re-fetch.
   ///
-  /// [invalidate] does not participate in the in-flight refresh
-  /// de-duplication. If a refresh is in-flight when [invalidate] is called,
-  /// the refresh will complete and overwrite `_lastFetchedAt` with the
-  /// now-time — losing the invalidation. Callers that invalidate
-  /// concurrently with refreshes should reason about this explicitly.
+  /// If a refresh is in flight, it still stores and emits its value, but
+  /// the cache stays stale.
   Future<void> invalidate() async {
+    _staleGeneration++;
     _lastFetchedAt = null;
+  }
+
+  /// Drops the cache, for sign-out or any change of whose data this is.
+  ///
+  /// After [clear]: [current] is null, [isStale] is true, the local copy is
+  /// deleted via [clearLocal], and the next first listen hydrates again. A
+  /// new listener on [stream] gets no replay of the old value. A refresh
+  /// that started before the clear does not write, emit or mark the cache
+  /// fresh; the next [refresh] starts a new fetch.
+  ///
+  /// Mounted listeners get no signal: [stream] carries values only. Tear
+  /// down or refresh the screens that showed the old value.
+  ///
+  /// Throws what [clearLocal] throws, so a sign-out can tell that the local
+  /// copy survived.
+  Future<void> clear() async {
+    _clearGeneration++;
+    _staleGeneration++;
+    _lastFetchedAt = null;
+    _pendingRefresh = null;
+    _hydrated = false;
+    _subject.clear();
+    await _clearLocal();
   }
 
   /// Optimistically emits [value] to subscribers without persisting it or
@@ -115,10 +158,14 @@ class CachedStream<T> {
   Future<void> dispose() => _subject.close();
 
   Future<DataResponse<T>> _runRefresh() async {
+    final clearGeneration = _clearGeneration;
+    final staleGeneration = _staleGeneration;
     try {
       final value = await _fetchRemote();
+      if (clearGeneration != _clearGeneration) return DataResponse<T>(data: value);
       await _writeLocal(value);
-      _lastFetchedAt = _clock.now();
+      if (clearGeneration != _clearGeneration) return DataResponse<T>(data: value);
+      if (staleGeneration == _staleGeneration) _lastFetchedAt = _clock.now();
       _subject.add(value);
       return DataResponse<T>(data: value);
     } on ArrkException catch (e) {
@@ -133,9 +180,10 @@ class CachedStream<T> {
   Future<void> _handleFirstListen() async {
     if (!_hydrated) {
       _hydrated = true;
+      final clearGeneration = _clearGeneration;
       try {
         final cached = await _readLocal();
-        if (cached != null) _subject.add(cached);
+        if (cached != null && clearGeneration == _clearGeneration) _subject.add(cached);
       } catch (_) {
         // Local read failure is non-fatal — refresh will repopulate.
       }

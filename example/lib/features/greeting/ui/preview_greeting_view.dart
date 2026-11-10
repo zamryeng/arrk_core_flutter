@@ -1,10 +1,12 @@
 import 'package:arrk_core_flutter/view.dart';
 import 'package:flutter/material.dart';
 
+import '.navigation/greeting_router.dart';
 import 'preview_greeting_vm.dart';
 
 /// Screen 2: preview and send. The VM (carrying the flow Dto) is constructed
-/// by the route builder and handed in.
+/// by the route builder and handed in. Navigates back once the VM reports
+/// the send worked.
 class PreviewGreetingView extends StatelessWidget {
   const PreviewGreetingView({super.key, required this.vm});
 
@@ -32,7 +34,11 @@ class PreviewGreetingView extends StatelessWidget {
               ),
               const Spacer(),
               FilledButton(
-                onPressed: vm.isBusy ? null : vm.onSend,
+                onPressed: vm.isBusy
+                    ? null
+                    : () async {
+                        if (await vm.onSend()) GreetingRouter.backToCompose();
+                      },
                 child: vm.isBusy
                     ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator())
                     : Text('Send to ${vm.draft.recipientName}'),
