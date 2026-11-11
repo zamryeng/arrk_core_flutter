@@ -19,6 +19,7 @@
 
 - **The error interceptor no longer throws on a non-JSON error body** (an HTML error page): it yields an exception with no message and no code instead of a `FormatException` or cast error.
 
+- **`arrk_lints/run.sh` runs when arrk_core_flutter is a git dependency.** It no longer runs `dart pub get` on an arrk_lints inside the pub cache (or a read-only checkout), which pub refuses ("Cannot operate on packages inside the cache"). The analysis server resolves the plugin itself.
 - **`arrk_lints/run.sh` can no longer pass without analyzing.** It skips tracked files deleted from the working tree (which made `dart analyze` exit with a usage error while the gate printed OK), and it fails when `dart analyze` prints no `Analyzing` line.
 - **README:** `flutter analyze <file>` does not surface plugin diagnostics; only `dart analyze <file>` does. Products gate on `run.sh`.
 - `capability_stateless` correction message says "the flow Dto" (was "a Draft").

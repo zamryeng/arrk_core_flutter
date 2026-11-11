@@ -46,8 +46,20 @@ else
   exit 1
 fi
 
-# Make sure the plugin package is resolved.
-( cd "$LINTS_DIR" && "${DART[@]}" pub get >/dev/null )
+# Resolve the plugin package in a local checkout. Skip it when arrk_lints sits
+# in the pub cache (arrk_core_flutter as a git or hosted dependency, reached
+# through tools/link-lints' .arrk-lints symlink): pub refuses to run there
+# ("Cannot operate on packages inside the cache"), and the analysis server
+# resolves the plugin on its own, so the step isn't needed.
+LINTS_REAL="$(cd "$LINTS_DIR" && pwd -P)"
+PUB_CACHE_REAL="$(cd "${PUB_CACHE:-$HOME/.pub-cache}" 2>/dev/null && pwd -P || true)"
+if [ -n "$PUB_CACHE_REAL" ] && [ "${LINTS_REAL#"$PUB_CACHE_REAL"/}" != "$LINTS_REAL" ]; then
+  : # inside the pub cache: nothing to resolve
+elif [ ! -w "$LINTS_REAL" ]; then
+  : # read-only checkout: pub get can't write .dart_tool, and isn't needed
+else
+  ( cd "$LINTS_REAL" && "${DART[@]}" pub get >/dev/null )
+fi
 
 # Dart sources under lib/, excluding generated outputs. Includes tracked
 # files plus untracked-but-not-ignored ones, so a brand-new file is gated
