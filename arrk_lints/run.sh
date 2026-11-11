@@ -54,7 +54,9 @@ fi
 # even before it's committed (portable: no mapfile -> works on bash 3.2).
 files=()
 while IFS= read -r f; do
-  files+=("$f")
+  # A tracked file deleted from the working tree would make `dart analyze`
+  # exit with a usage error and analyze nothing — skip it.
+  [ -e "$f" ] && files+=("$f")
 done < <(
   {
     git ls-files 'lib/**/*.dart' 'lib/*.dart'
@@ -70,4 +72,11 @@ fi
 echo "Analyzing ${#files[@]} files with arrk_lints..." >&2
 # dart analyze exits non-zero whenever it finds anything; the gate decides.
 output="$("${DART[@]}" analyze "${files[@]}" 2>&1 || true)"
+# A gate that analyzed nothing must not pass. `dart analyze` prints
+# "Analyzing ..." when it runs; a usage error or a missing SDK prints none.
+if ! printf '%s\n' "$output" | grep -q '^Analyzing'; then
+  echo "arrk_lints: dart analyze did not run — refusing to report OK. Output:" >&2
+  printf '%s\n' "$output" >&2
+  exit 1
+fi
 printf '%s\n' "$output" | python3 "$LINTS_DIR/baseline.py" "$MODE" "$PWD/arrk_baseline.txt"

@@ -1,7 +1,7 @@
 name: arrk_core_example
 description: Minimal example app exercising the arrk_core_flutter public API.
 publish_to: none
-version: 0.1.1
+version: 0.1.2
 
 environment:
   sdk: ^3.13.7

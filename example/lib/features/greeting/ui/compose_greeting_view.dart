@@ -14,7 +14,7 @@ class ComposeGreetingView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ArrkView<ComposeGreetingVm>(
-      model: ServiceLocator.get(),
+      create: ServiceLocator.get.call,           // built once, disposed with the view
       builder: (vm, context) => Scaffold(
         appBar: AppBar(title: const Text('Compose greeting')),
         body: Padding(

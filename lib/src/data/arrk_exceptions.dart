@@ -1,60 +1,94 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import '../domain/failure.dart';
 
 /// Base type for the typed exceptions the data layer throws internally.
 ///
 /// Every [ArrkException] knows how to flatten itself to a display-safe
 /// [Failure] via [toFailure]; repository guards do that flattening so
-/// nothing above the data layer sees an exception.
+/// nothing above the data layer sees an exception. The exception's [code]
+/// always reaches the failure: subclasses implement [buildFailure] and are
+/// handed the code to pass on.
 abstract class ArrkException implements Exception {
-  const ArrkException();
-  Failure toFailure();
+  const ArrkException({this.code});
+
+  /// The server's error code, verbatim, when this exception came off the
+  /// wire. Null for exceptions raised locally (the failure may then carry a
+  /// client default, see [ArrkFailureCodes]).
+  final String? code;
+
+  /// Builds the failure for this exception. [code] is this exception's
+  /// [code]; pass it to the failure you build.
+  @protected
+  Failure buildFailure(String? code);
+
+  /// The failure the repo guard hands upward.
+  Failure toFailure() => buildFailure(code);
 
   @override
-  String toString() {
-    return '$runtimeType - ${toFailure().message}';
-  }
+  String toString() => '$runtimeType - ${toFailure()}';
 }
 
 extension ArrkExceptionExtension on TimeoutException {
   TimeoutFailure toFailure() => TimeoutFailure();
 }
 
-class ServerException implements ArrkException {
+/// The server failed (5xx).
+class ServerException extends ArrkException {
+  const ServerException({this.errorMessage, super.code});
+
   final String? errorMessage;
-  ServerException({this.errorMessage});
+
   @override
-  ServerFailure toFailure() => ServerFailure(message: errorMessage);
+  ServerFailure buildFailure(String? code) => ServerFailure(message: errorMessage, code: code);
 }
 
-class InputException implements ArrkException {
+/// The request was rejected as invalid (4xx other than auth), or a success
+/// response carried an error body.
+class InputException extends ArrkException {
+  const InputException({required this.errorMessage, super.code});
+
   final String? errorMessage;
-  InputException({required this.errorMessage});
+
   @override
-  InputFailure toFailure() => InputFailure(message: errorMessage);
+  InputFailure buildFailure(String? code) => InputFailure(message: errorMessage, code: code);
 }
 
-class UnauthorisedException implements ArrkException {
+/// Authentication is missing, bad or expired (401/403).
+class UnauthorisedException extends ArrkException {
+  const UnauthorisedException({this.errorMessage = '', super.code});
+
   final String errorMessage;
-  UnauthorisedException({this.errorMessage = ''});
+
   @override
-  BadAuthFailure toFailure() => BadAuthFailure(message: errorMessage);
+  BadAuthFailure buildFailure(String? code) => BadAuthFailure(message: errorMessage, code: code);
 }
 
-class NetworkException implements ArrkException {
+/// No route to the server.
+class NetworkException extends ArrkException {
+  const NetworkException({super.code});
+
   @override
-  Failure toFailure() => NetworkFailure();
+  NetworkFailure buildFailure(String? code) => NetworkFailure(code: code);
 }
 
-class UnknownException implements ArrkException {
+/// Anything that does not fit the other types.
+class UnknownException extends ArrkException {
+  const UnknownException({super.code});
+
   @override
-  Failure toFailure() => UnknownFailure();
+  UnknownFailure buildFailure(String? code) => UnknownFailure(code: code);
 }
 
-class ControlledException implements ArrkException {
+/// A business-rule refusal the backend reported with a user-facing message.
+class ControlledException extends ArrkException {
+  const ControlledException({this.errorMessage = '', super.code});
+
   final String errorMessage;
-  ControlledException({this.errorMessage = ''});
+
   @override
-  Failure toFailure() => ControlledFailure(message: errorMessage);
+  ControlledFailure buildFailure(String? code) =>
+      ControlledFailure(message: errorMessage, code: code);
 }

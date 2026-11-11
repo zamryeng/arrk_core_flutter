@@ -24,9 +24,7 @@ final class GreetingRouter {
     GoRoute(
       path: previewRoute.path,
       name: previewRoute.name,
-      builder: (context, state) => PreviewGreetingView(
-        vm: ServiceLocator.get(param1: state.extra! as GreetingDraftDto),
-      ),
+      builder: (context, state) => PreviewGreetingView(draft: state.extra! as GreetingDraftDto),
     ),
   ];
 

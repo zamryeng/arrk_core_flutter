@@ -31,7 +31,7 @@ class CapabilityStateless extends AnalysisRule {
     "Capability field '{0}' holds state.",
     correctionMessage:
         'Make it a final field set from a constructor parameter, or a '
-        'static const. State belongs in a repo (or a Draft for a flow).',
+        'static const. State belongs in a repo (or the flow Dto).',
     severity: DiagnosticSeverity.WARNING,
   );
 

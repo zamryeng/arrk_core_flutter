@@ -55,6 +55,8 @@ Future<void> main() async {
 
 7. **Messages.** Register one `ArrkMessageChannel` as itself and as both halves, the same split as the event bus. Every `ArrkViewModel` takes `MessageSink` as a required constructor argument (`MyVm(this._capability, super.messageSink)`) and pushes through `handleError` and `showSuccess` / `showWarning` / `showInfo` — even after it is disposed. Your one `ArrkMessageHandler` subclass takes `MessageStream` and draws each message on the root overlay (not in a `Scaffold`, where a modal sheet can cover it). It shows messages from hidden screens too, and skips a message with the same kind and text as one shown within `dedupeWindow` (2 seconds by default). Tests pass a `FakeMessageSink()`.
 
+8. **Views build their VMs once.** `ArrkView(create: ServiceLocator.get.call, ...)` — `create:` runs once, in the view's `initState`, and the VM is disposed with the view. A flow screen takes its Dto from the route and creates its VM from it: `create: () => ServiceLocator.get(param1: dto)`. Never `model: ServiceLocator.get()` in a `build` method, and never a VM lookup in a route builder: both mint a new, never-disposed VM on every rebuild.
+
    ```dart
    @module
    abstract class MessagesModule {

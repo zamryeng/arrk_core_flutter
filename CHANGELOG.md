@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.1.2
+
+### Error codes (adapted from zamry_wallet)
+
+- **`Failure.code`**: every failure carries a stable string to branch on. For a failure that came off the wire it is the server's error code, verbatim; failure types no response produced carry a client default — `ArrkFailureCodes.network` (`NETWORK_ERROR`), `.timeout` (`TIMEOUT`), `.serviceNotReady` (`SERVICE_NOT_READY`), `.unknown` (`UNKNOWN`). A server code always wins over the default. `Failure.toString()` shows it.
+- **`ArrkException.code`** and a `@protected buildFailure(String? code)` template: `toFailure()` now always hands the exception's code to the failure it builds. Every shipped exception takes `code:`, and `ServiceNotInitializedException` / `ServiceInitException` do too. Product exceptions should `extends ArrkException` and implement `buildFailure`; a class that `implements ArrkException` must now also provide `code` and `buildFailure`.
+- **`DioNetworkService` reads the code at the boundary**: error responses (5xx, 401/403, other 4xx) and success responses with `error: true` carry the body's `code` into the exception, via `errorCodeOf` (default `defaultErrorCodeOf`: `body['code']`, as a string). Pass your own `ErrorCodeReader` when the API nests it.
+- `NetworkFailure` and `UnknownFailure` now `extends Failure` (were `implements`).
+
+### `ArrkView(create:)` — view models built once
+
+- **New `create:` factory on `ArrkView`**, called exactly once in the State's `initState`; that instance is the one provided and auto-disposed. Exactly one of `create:` / `model:` is required (asserted). Spelling: `create: ServiceLocator.get.call`, or `create: () => ServiceLocator.get<MyVm>(param1: dto)` for a flow VM.
+- **Why:** `model:` is read once, so `model: ServiceLocator.get()` in a `build` method minted a new factory VM on every parent rebuild that was never used or disposed, leaking its subscriptions. The same held for route builders constructing VMs. `model:` stays for tests and for a caller that owns the instance (a `State` that built it once).
+- Example: views create their VMs; routes hand the flow Dto to the view, not a VM.
+
+### Fixes
+
+- **The error interceptor no longer throws on a non-JSON error body** (an HTML error page): it yields an exception with no message and no code instead of a `FormatException` or cast error.
+
+- **`arrk_lints/run.sh` can no longer pass without analyzing.** It skips tracked files deleted from the working tree (which made `dart analyze` exit with a usage error while the gate printed OK), and it fails when `dart analyze` prints no `Analyzing` line.
+- **README:** `flutter analyze <file>` does not surface plugin diagnostics; only `dart analyze <file>` does. Products gate on `run.sh`.
+- `capability_stateless` correction message says "the flow Dto" (was "a Draft").
+
 ## 0.1.1
 
 Makes arrk the one rulebook for every arrk Flutter product. No product used 0.1.0, so the API changes below ship as a patch with no migration notes.

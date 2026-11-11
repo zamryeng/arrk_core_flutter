@@ -3,7 +3,7 @@ description: >-
   Arrk's Flutter core: base classes and plumbing for the four-layer
   architecture — view models, views, repositories, responses, events,
   navigation, network, services, session, and DI wiring.
-version: 0.1.1
+version: 0.1.2
 publish_to: none
 
 environment:

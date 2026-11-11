@@ -26,15 +26,15 @@ enum ServiceStatus {
 /// Thrown when a service is awaited/accessed before init succeeded.
 /// Maps to [ServiceNotReady] so repo guards convert it automatically.
 class ServiceNotInitializedException extends ArrkException {
-  const ServiceNotInitializedException(this.serviceName, {this.status, this.lastError});
+  const ServiceNotInitializedException(this.serviceName, {this.status, this.lastError, super.code});
 
   final String serviceName;
   final ServiceStatus? status;
   final Object? lastError;
 
   @override
-  Failure toFailure() =>
-      ServiceNotReady(serviceName: serviceName, status: status, lastError: lastError);
+  Failure buildFailure(String? code) =>
+      ServiceNotReady(serviceName: serviceName, status: status, lastError: lastError, code: code);
 }
 
 /// Thrown from inside an init body when initialization fails, and used as the
@@ -42,15 +42,15 @@ class ServiceNotInitializedException extends ArrkException {
 /// is awaited. [message] is surfaced verbatim as the [ServiceNotReady]
 /// failure message.
 class ServiceInitException extends ArrkException {
-  const ServiceInitException(this.serviceName, {this.message, this.cause});
+  const ServiceInitException(this.serviceName, {this.message, this.cause, super.code});
 
   final String serviceName;
   final String? message;
   final Object? cause;
 
   @override
-  Failure toFailure() =>
-      ServiceNotReady(serviceName: serviceName, lastError: cause, message: message);
+  Failure buildFailure(String? code) =>
+      ServiceNotReady(serviceName: serviceName, lastError: cause, message: message, code: code);
 }
 
 /// Base class for long-init services (SDK wrappers, engines with warm-up).

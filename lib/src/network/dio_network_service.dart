@@ -17,10 +17,16 @@ import 'rest_network_service.dart';
 /// Products register one instance per API host (named registrations for
 /// secondary hosts), handing in the [RequestHeadersProvider] whose headers
 /// go on every call. The [DataErrorInterceptor] maps Dio failures to
-/// the typed `ArrkException`s before they reach the data layer.
+/// the typed `ArrkException`s before they reach the data layer, carrying the
+/// server's error code ([errorCodeOf]) so it reaches `Failure.code`.
 class DioNetworkService extends RestNetworkService {
   final Dio _dio;
   final RequestHeadersProvider headersProvider;
+
+  /// Reads the server's error code from a response body. Defaults to
+  /// [defaultErrorCodeOf] (`body['code']`); pass your own when the API puts
+  /// it elsewhere (e.g. `body['error']['code']`).
+  final ErrorCodeReader errorCodeOf;
 
   DioNetworkService({
     required this.headersProvider,
@@ -28,6 +34,7 @@ class DioNetworkService extends RestNetworkService {
     required super.isProd,
     required super.sendTimeout,
     super.receiveTimeout,
+    this.errorCodeOf = defaultErrorCodeOf,
   }) : _dio = Dio(
          BaseOptions(
            baseUrl: Uri.parse(baseUrl).toString(),
@@ -38,7 +45,7 @@ class DioNetworkService extends RestNetworkService {
        ) {
     _dio.interceptors.addAll([
       if (!isProd || kDebugMode) NetworkLoggerInterceptor(),
-      DataErrorInterceptor(),
+      DataErrorInterceptor(errorCodeOf: errorCodeOf),
     ]);
   }
 
@@ -100,7 +107,7 @@ class DioNetworkService extends RestNetworkService {
       }
       // Handle errors coming with success status code.
       if (res['error'] as bool? ?? false) {
-        throw InputException(errorMessage: res['message'].toString());
+        throw InputException(errorMessage: res['message']?.toString(), code: errorCodeOf(res));
       }
 
       return res as Json;
@@ -142,10 +149,22 @@ class DioNetworkService extends RestNetworkService {
   }
 }
 
+/// Reads a server error code out of a response body, or returns null.
+typedef ErrorCodeReader = String? Function(Map<dynamic, dynamic> body);
+
+/// The default [ErrorCodeReader]: `body['code']`, as a string.
+String? defaultErrorCodeOf(Map<dynamic, dynamic> body) => body['code']?.toString();
+
 /// Maps Dio failures to the typed `ArrkException`s and normalizes non-map
 /// response bodies to `{ 'data': <payload> }`.
+///
+/// Every exception it raises from a response carries the body's `message`
+/// and the server's error code (via [errorCodeOf]). A body that is not a JSON
+/// object (an HTML error page, an empty body) yields no message and no code.
 class DataErrorInterceptor extends Interceptor {
-  DataErrorInterceptor();
+  DataErrorInterceptor({this.errorCodeOf = defaultErrorCodeOf});
+
+  final ErrorCodeReader errorCodeOf;
 
   static final Logger _logger = Logger('DioNetworkService');
 
@@ -169,37 +188,36 @@ class DataErrorInterceptor extends Interceptor {
           error: TimeoutException('Request Timed out. Try again'),
         ),
       );
-    } else if (err.isServerError || err.isUnauthorised) {
-      String? message;
-      final responseData = err.response?.data;
-      if (responseData is Map) {
-        message = responseData['message']?.toString();
-      }
-      handler.next(
-        DioException(
-          requestOptions: err.requestOptions,
-          error: err.isServerError
-              ? ServerException(errorMessage: message)
-              : UnauthorisedException(errorMessage: message ?? ''),
-        ),
-      );
     } else {
-      Map<dynamic, dynamic> json;
-      final responseData = err.response?.data;
-      if (err.response == null) {
-        json = {};
-      } else if (responseData is Map) {
-        json = responseData;
+      final body = _bodyOf(err.response);
+      final message = body['message']?.toString();
+      final code = errorCodeOf(body);
+      final ArrkException error;
+      if (err.isServerError) {
+        error = ServerException(errorMessage: message, code: code);
+      } else if (err.isUnauthorised) {
+        error = UnauthorisedException(errorMessage: message ?? '', code: code);
       } else {
-        json = jsonDecode(responseData.toString()) as Map<dynamic, dynamic>;
+        error = InputException(errorMessage: message, code: code);
       }
-      handler.next(
-        DioException(
-          requestOptions: err.requestOptions,
-          error: InputException(errorMessage: json['message']?.toString()),
-        ),
-      );
+      handler.next(DioException(requestOptions: err.requestOptions, error: error));
     }
+  }
+
+  /// The error response's body as a map: the decoded JSON object, or `{}`
+  /// when there is no response or the body is not a JSON object.
+  static Map<dynamic, dynamic> _bodyOf(Response<dynamic>? response) {
+    final data = response?.data;
+    if (data is Map) return data;
+    if (data is String && data.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(data);
+        if (decoded is Map) return decoded;
+      } on FormatException {
+        // Not JSON (an HTML error page): no message, no code.
+      }
+    }
+    return const {};
   }
 }
 

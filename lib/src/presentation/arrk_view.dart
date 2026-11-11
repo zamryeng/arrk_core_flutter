@@ -7,41 +7,60 @@ import '../domain/arrk_view_model.dart';
 /// Hosts a view model for one screen: provides it to the subtree, drives its
 /// lifecycle, and rebuilds the [builder] on every notification.
 ///
-/// Views render, VMs hold — [ArrkView] is the seam between them. The route
-/// builder constructs the VM (typically `ServiceLocator.get<MyVm>()`) and
-/// hands it in as [model]; [autoDispose] disposes it with the widget.
+/// Views render, VMs hold — [ArrkView] is the seam between them. Pass
+/// [create] and the view builds its VM **once**, in its State's `initState`;
+/// that instance is the one provided, and [autoDispose] disposes it with the
+/// widget. Use this whenever the view constructs its own VM:
 ///
 /// ```dart
 /// ArrkView<LoginViewModel>(
-///   model: ServiceLocator.get<LoginViewModel>(),
+///   create: ServiceLocator.get.call,
 ///   initState: (vm) => vm.onInit(),
 ///   builder: (vm, context) => LoginScreen(vm: vm),
 /// )
 /// ```
 ///
+/// Pass [model] instead only when the caller already owns the instance —
+/// a test, or a route builder that constructs a VM carrying a flow Dto. A
+/// `model:` argument is read once, in `initState`; later widgets' models are
+/// ignored. So never write `model: ServiceLocator.get()` inside a `build`
+/// method: every parent rebuild makes a new factory VM that is never used
+/// and never disposed, leaking whatever it subscribed to.
+///
 /// [T] The view model type, extending [ArrkViewModel].
 class ArrkView<T extends ArrkViewModel> extends StatefulWidget {
   /// Creates an [ArrkView].
   ///
-  /// [model] is the view model instance provided to the subtree; [builder]
-  /// builds the widget tree from it. [initState] runs during widget
+  /// Pass exactly one of [create] (the view builds its VM once) and [model]
+  /// (the caller hands in an instance it already holds). [builder] builds
+  /// the widget tree from the VM. [initState] runs during widget
   /// initialization; [postFrameCallback] after the first frame. [keepAlive]
   /// preserves the state when not visible (via
   /// [AutomaticKeepAliveClientMixin]).
   const ArrkView({
     super.key,
-    required this.model,
+    this.create,
+    this.model,
     required this.builder,
     this.autoDispose = true,
     this.initState,
     this.postFrameCallback,
     this.keepAlive = false,
-  });
+  }) : assert(
+         (create == null) != (model == null),
+         'ArrkView needs exactly one of create: or model:',
+       );
 
-  /// The view model provided to the builder and the subtree.
-  final T model;
+  /// Builds the view model. Called exactly once, in the State's `initState`;
+  /// parent rebuilds never call it again. Typically `ServiceLocator.get.call`
+  /// (or `() => ServiceLocator.get<MyVm>()`).
+  final T Function()? create;
 
-  /// Whether to dispose [model] when this widget is disposed.
+  /// A view model the caller already holds. Read once, in `initState`.
+  final T? model;
+
+  /// Whether to dispose the view model when this widget is disposed — the
+  /// one [create] built, or the [model] handed in.
   final bool autoDispose;
 
   /// Optional callback run in `initState`, receiving the view model. Errors
@@ -67,12 +86,13 @@ class ArrkView<T extends ArrkViewModel> extends StatefulWidget {
 /// [ChangeNotifierProvider].
 class ArrkViewState<T extends ArrkViewModel> extends State<ArrkView<T>>
     with AutomaticKeepAliveClientMixin {
-  /// The hosted view model.
-  late T model;
+  /// The hosted view model: built by `create` or handed in as `model`, once.
+  late final T model;
 
   @override
   void initState() {
-    model = widget.model;
+    final create = widget.create;
+    model = create != null ? create() : widget.model!;
 
     final initState = widget.initState;
     if (initState != null) {

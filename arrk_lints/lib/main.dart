@@ -28,7 +28,7 @@ import 'src/rules/vm_uses_capabilities_only.dart';
 ///   arrk_lints:
 ///     git:
 ///       url: <your arrk_core_flutter git URL>
-///       ref: v0.1.1
+///       ref: v0.1.2
 ///       path: arrk_lints
 ///     diagnostics:
 ///       no_manager_in_features: true

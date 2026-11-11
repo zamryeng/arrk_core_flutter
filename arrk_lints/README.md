@@ -37,7 +37,7 @@ plugins:
   arrk_lints:
     git:
       url: <arrk_core_flutter git URL>
-      ref: v0.1.1
+      ref: v0.1.2
       path: arrk_lints
     diagnostics:
       avoid_data_models_in_domain: true
@@ -74,10 +74,14 @@ plugins:
 
 1. **Plugin diagnostics only appear for explicitly-listed file arguments, not
    directory-mode analysis.** `dart analyze <dir>` and a bare `flutter analyze`
-   surface *none* of these lints; pass files explicitly and they show up under
-   both `dart analyze <file>` and `flutter analyze <file>`. `run.sh` enumerates
-   every Dart file under `lib/` (tracked + untracked-not-ignored) and passes
-   them explicitly. The IDE loads the plugin and surfaces the lints inline.
+   surface *none* of these lints. Pass files explicitly to **`dart analyze`**
+   and they show up. `flutter analyze <file>` does **not** surface them
+   (verified on Flutter 3.47.9 / Dart 3.13.7), so a gate built on it passes
+   violating code silently. `run.sh` enumerates every Dart file under `lib/`
+   (tracked + untracked-not-ignored, skipping tracked files deleted from the
+   working tree), passes them to `dart analyze`, and fails if no analysis ran.
+   Products should gate on `run.sh`, not on a wrapper of their own. The IDE
+   loads the plugin and surfaces the lints inline.
 2. **`// ignore` / `// ignore_for_file` do not suppress plugin lints yet.** Use the baseline (below) for violations you can't fix yet.
 
 ## Running

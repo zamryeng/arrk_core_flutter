@@ -14,7 +14,7 @@ dependencies:
   arrk_core_flutter:
     git:
       url: <arrk_core_flutter git URL>
-      ref: v0.1.1
+      ref: v0.1.2
 ```
 
 Enable the lints in `analysis_options.yaml`, from the same repo and tag:
@@ -24,7 +24,7 @@ plugins:
   arrk_lints:
     git:
       url: <arrk_core_flutter git URL>
-      ref: v0.1.1
+      ref: v0.1.2
       path: arrk_lints
     diagnostics:
       avoid_data_models_in_domain: true
@@ -73,7 +73,7 @@ One import per layer; `arrk_core_flutter.dart` is the umbrella.
 | `viewmodel.dart` | `ArrkViewModel`, `VmState`, `ArrkPaginatedDataViewModel`, `MessageSink`, `UserMessage`, `UserMessageKind` |
 | `view.dart` | `ArrkView`, `ArrkViewBuilder`, `ArrkViewSelector`, `MessageStream`, `ArrkMessageChannel`, `ArrkMessageHandler` |
 | `data.dart` | `ArrkRepository` (guards), `CachedStream`, `Clock`, typed exceptions |
-| `responses.dart` | `Failure` hierarchy, `DataResponse`, `StatusResponse` |
+| `responses.dart` | `Failure` hierarchy (each with a `code`), `ArrkFailureCodes`, `DataResponse`, `StatusResponse` |
 | `events.dart` | `ArrkEvent`, `ArrkEventBus`, `EventPublisher`, `EventStream`, `ArrkReactions` |
 | `navigation.dart` | `ArrkNavigator`, `ArrkRoute`, `ArrkExtrasCodec`, `DeepLinkRoute` |
 | `network.dart` | `RestNetworkService`, `DioNetworkService`, `RequestHeadersProvider`, `JsonRequest`, `FormDataRequest`, `ApiEnvelope` |

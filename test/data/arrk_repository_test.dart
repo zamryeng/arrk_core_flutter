@@ -23,12 +23,13 @@ class _ConcreteRepo extends ArrkRepository {
   void setResultsPerPage(int n) => resultsPerPage = n;
 }
 
-class _CustomArrkException implements ArrkException {
+/// A product-defined exception: extends the base and builds its own failure.
+class _CustomArrkException extends ArrkException {
   final String msg;
   const _CustomArrkException(this.msg);
 
   @override
-  Failure toFailure() => ControlledFailure(message: msg);
+  Failure buildFailure(String? code) => ControlledFailure(message: msg, code: code);
 
   @override
   String toString() => 'CustomArrkException($msg)';
